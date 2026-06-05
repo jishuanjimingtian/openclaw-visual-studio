@@ -381,19 +381,19 @@ public class GatewayService {
 
     private void finalizeStartupSuccess(int targetPort) {
         boolean clientReady = gatewayWebSocketClient.isConnected();
-        GatewayInfo info = GatewayInfo.builder()
+        GatewayInfo.GatewayInfoBuilder infoBuilder = GatewayInfo.builder()
             .port(targetPort)
             .status(clientReady ? "running" : "starting")
             .startupPhase(clientReady ? PHASE_RUNNING : PHASE_RPC_CONNECT)
             .startupProgress(clientReady ? 100 : 85)
             .pid(gatewayPid)
-            .endpoint("http://localhost:" + targetPort)
             .workDir(workDir)
             .wsConnected(clientReady)
             .serviceInstalled(isDaemonServiceInstalledCached())
             .version(getGatewayVersionCached())
-            .message(clientReady ? null : "Gateway 端口已监听，后端正在连接（需完成 device 握手）")
-            .build();
+            .message(clientReady ? null : "Gateway 端口已监听，后端正在连接（需完成 device 握手）");
+        applyGatewayEndpoints(infoBuilder, targetPort);
+        GatewayInfo info = infoBuilder.build();
         if (startTime != null) {
             info.setStartTime(startTime.format(DT_FORMAT));
             info.setUptime(formatDuration(Duration.between(startTime, LocalDateTime.now())));
@@ -474,7 +474,7 @@ public class GatewayService {
             .version(getGatewayVersionCached());
 
         if (clientReady || isPortOpenQuick(port)) {
-            builder.endpoint("http://localhost:" + port);
+            applyGatewayEndpoints(builder, port);
         }
         if (startTime != null) {
             builder.startTime(startTime.format(DT_FORMAT));
@@ -568,9 +568,9 @@ public class GatewayService {
         gatewayWebSocketClient.reconnectIfNeeded();
         boolean clientReady = waitForGatewayClientReady(10, TimeUnit.SECONDS);
 
+        applyGatewayEndpoints(builder, port);
         builder.port(port)
                 .pid(gatewayPid)
-                .endpoint("http://localhost:" + port)
                 .workDir(workDir)
                 .wsConnected(clientReady)
                 .serviceInstalled(isDaemonServiceInstalled());
@@ -874,8 +874,8 @@ public class GatewayService {
 
             builder.status(clientReady ? "running" : "starting")
                 .pid(gatewayPid)
-                .endpoint("http://localhost:" + port)
                 .serviceInstalled(isDaemonServiceInstalledCached());
+            applyGatewayEndpoints(builder, port);
             if (startTime != null) {
                 builder.startTime(startTime.format(DT_FORMAT));
                 builder.uptime(formatDuration(Duration.between(startTime, LocalDateTime.now())));
@@ -902,9 +902,11 @@ public class GatewayService {
             .wsConnected(clientReady)
             .serviceInstalled(isDaemonServiceInstalledCached())
             .version(getGatewayVersionCached())
-            .endpoint(portReady || clientReady ? "http://localhost:" + port : null)
             .pid(gatewayPid)
             .workDir(workDir);
+        if (portReady || clientReady) {
+            applyGatewayEndpoints(builder, port);
+        }
 
         if (clientReady) {
             builder.status("running");
@@ -1349,6 +1351,11 @@ public class GatewayService {
     private void applyManagedBy(GatewayInfo.GatewayInfoBuilder builder) {
         builder.managedBy(managementMode);
         builder.serviceInstalled(isDaemonServiceInstalledCached());
+    }
+
+    private void applyGatewayEndpoints(GatewayInfo.GatewayInfoBuilder builder, int port) {
+        builder.endpoint(OpenClawGatewayConfigReader.toGatewayHttpEndpoint(port));
+        builder.controlUrl(OpenClawGatewayConfigReader.toControlUiUrl(port));
     }
 
     private String stoppedWhilePortOccupiedMessage(int port) {

@@ -23,6 +23,22 @@ class OpenClawGatewayConfigReaderTest {
     }
 
     @Test
+    void toControlUiUrl_appendsTokenFragmentWhenConfigured() {
+        // Token comes from ~/.openclaw/openclaw.json at runtime; verify base URL shape.
+        String url = OpenClawGatewayConfigReader.toControlUiUrl(18789);
+        assertThat(url).startsWith("http://localhost:18789");
+        if (OpenClawGatewayConfigReader.readGatewayToken().isPresent()) {
+            assertThat(url).contains("#token=");
+        }
+    }
+
+    @Test
+    void toGatewayHttpEndpoint_usesLocalhost() {
+        assertThat(OpenClawGatewayConfigReader.toGatewayHttpEndpoint(18789))
+            .isEqualTo("http://localhost:18789");
+    }
+
+    @Test
     void normalizeWebSocketUrl_stripsLegacyWsPath() {
         assertThat(OpenClawGatewayConfigReader.normalizeWebSocketUrl("ws://localhost:18791/ws"))
             .isEqualTo("ws://localhost:18791");

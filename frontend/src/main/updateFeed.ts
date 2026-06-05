@@ -8,19 +8,39 @@ export interface AppUpdateFeedConfig {
   url?: string;
 }
 
-export interface GenericUpdateFeed {
-  provider: 'generic';
-  url: string;
-}
+export type UpdateFeed =
+  | { provider: 'generic'; url: string }
+  | { provider: 'github'; owner: string; repo: string };
 
+const DEFAULT_OWNER = 'jishuanjimingtian';
+const DEFAULT_REPO = 'openclaw-visual-studio';
 const DEFAULT_MIRRORS = ['https://ghfast.top/', 'https://mirror.ghproxy.com/'];
 
 function normalizeBaseUrl(url: string): string {
   return url.endsWith('/') ? url : `${url}/`;
 }
 
-function githubReleaseFeedBase(owner: string, repo: string): string {
-  return normalizeBaseUrl(`https://github.com/${owner}/${repo}/releases/download/latest`);
+/** GitHub 最新 Release 资产根路径（正确写法，不是 tag 名为 latest） */
+export function githubLatestReleaseFeedBase(owner: string, repo: string): string {
+  return normalizeBaseUrl(`https://github.com/${owner}/${repo}/releases/latest/download`);
+}
+
+/** 修正旧版错误路径：/releases/download/latest/ → /releases/latest/download/ */
+export function normalizeUpdateFeedUrl(url: string): string {
+  return normalizeBaseUrl(url).replace(
+    /\/releases\/download\/latest\/?/gi,
+    '/releases/latest/download/',
+  );
+}
+
+function isGithubReleaseFeedUrl(url: string): boolean {
+  return /https:\/\/github\.com\/[^/]+\/[^/]+\/releases\//i.test(url);
+}
+
+function parseGithubReleaseFeedUrl(url: string): { owner: string; repo: string } | null {
+  const match = url.match(/https:\/\/github\.com\/([^/]+)\/([^/]+)\/releases\//i);
+  if (!match) return null;
+  return { owner: match[1], repo: match[2] };
 }
 
 export function readAppUpdateConfig(resourcesPath: string): AppUpdateFeedConfig | null {
@@ -42,7 +62,7 @@ export function readAppUpdateConfig(resourcesPath: string): AppUpdateFeedConfig 
 
     const provider = parsed.provider === 'generic' ? 'generic' : 'github';
     if (provider === 'generic' && parsed.url) {
-      return { provider, url: normalizeBaseUrl(parsed.url) };
+      return { provider, url: normalizeUpdateFeedUrl(parsed.url) };
     }
     if (parsed.owner && parsed.repo) {
       return { provider: 'github', owner: parsed.owner, repo: parsed.repo };
@@ -53,42 +73,78 @@ export function readAppUpdateConfig(resourcesPath: string): AppUpdateFeedConfig 
   }
 }
 
+function buildMirrorFeeds(baseUrl: string, env: NodeJS.ProcessEnv): UpdateFeed[] {
+  if (!isGithubReleaseFeedUrl(baseUrl)) {
+    return [{ provider: 'generic', url: baseUrl }];
+  }
+
+  const mirrors = [
+    env.UPDATE_GITHUB_MIRROR?.trim(),
+    ...DEFAULT_MIRRORS,
+  ].filter((value): value is string => Boolean(value));
+
+  const seen = new Set<string>();
+  const feeds: UpdateFeed[] = [];
+
+  for (const mirror of mirrors) {
+    const url = `${normalizeBaseUrl(mirror)}${baseUrl}`;
+    if (seen.has(url)) continue;
+    seen.add(url);
+    feeds.push({ provider: 'generic', url });
+  }
+
+  if (!seen.has(baseUrl)) {
+    feeds.push({ provider: 'generic', url: baseUrl });
+  }
+
+  const parsed = parseGithubReleaseFeedUrl(baseUrl);
+  if (parsed) {
+    feeds.push({ provider: 'github', owner: parsed.owner, repo: parsed.repo });
+  }
+
+  return feeds;
+}
+
+function buildGithubFeeds(owner: string, repo: string, env: NodeJS.ProcessEnv): UpdateFeed[] {
+  const direct = githubLatestReleaseFeedBase(owner, repo);
+  return buildMirrorFeeds(direct, env);
+}
+
 export function resolveUpdateFeeds(
   resourcesPath: string,
   env: NodeJS.ProcessEnv = process.env,
-): GenericUpdateFeed[] {
+): UpdateFeed[] {
   const config = readAppUpdateConfig(resourcesPath);
-  if (!config) return [];
+  const seen = new Set<string>();
+  const feeds: UpdateFeed[] = [];
 
-  if (config.provider === 'generic' && config.url) {
-    return [{ provider: 'generic', url: config.url }];
+  const pushFeed = (feed: UpdateFeed) => {
+    const key = feed.provider === 'generic'
+      ? `generic:${feed.url}`
+      : `github:${feed.owner}/${feed.repo}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    feeds.push(feed);
+  };
+
+  const pushFeeds = (items: UpdateFeed[]) => {
+    for (const feed of items) {
+      pushFeed(feed);
+    }
+  };
+
+  // 始终优先使用正确的默认源（兼容旧版 app-update.yml 写错路径）
+  pushFeeds(buildGithubFeeds(DEFAULT_OWNER, DEFAULT_REPO, env));
+
+  if (config?.provider === 'generic' && config.url) {
+    pushFeeds(buildMirrorFeeds(config.url, env));
   }
 
-  if (config.provider === 'github' && config.owner && config.repo) {
-    const direct = githubReleaseFeedBase(config.owner, config.repo);
-    const mirrors = [
-      env.UPDATE_GITHUB_MIRROR?.trim(),
-      ...DEFAULT_MIRRORS,
-    ].filter((value): value is string => Boolean(value));
-
-    const seen = new Set<string>();
-    const feeds: GenericUpdateFeed[] = [];
-
-    for (const mirror of mirrors) {
-      const url = `${normalizeBaseUrl(mirror)}${direct}`;
-      if (seen.has(url)) continue;
-      seen.add(url);
-      feeds.push({ provider: 'generic', url });
-    }
-
-    if (!seen.has(direct)) {
-      feeds.push({ provider: 'generic', url: direct });
-    }
-
-    return feeds;
+  if (config?.provider === 'github' && config.owner && config.repo) {
+    pushFeeds(buildGithubFeeds(config.owner, config.repo, env));
   }
 
-  return [];
+  return feeds;
 }
 
 export function formatUpdateError(err: unknown): string {
@@ -97,7 +153,7 @@ export function formatUpdateError(err: unknown): string {
     return '无法连接更新服务器，请检查网络或稍后重试';
   }
   if (/404|not found|cannot find|ENOENT/i.test(raw)) {
-    return '暂未发布可用更新，请关注后续版本发布';
+    return '无法获取更新信息。请确认 Release 已正式发布，且 GitHub 仓库为公开（私有仓库客户端无法拉取）';
   }
   return raw;
 }

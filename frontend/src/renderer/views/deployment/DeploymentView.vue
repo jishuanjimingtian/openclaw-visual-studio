@@ -209,7 +209,7 @@
           </n-text>
           <n-text v-if="gatewayEndpoint" depth="3">
             访问
-            <n-a :href="gatewayEndpoint" target="_blank">{{ gatewayEndpoint }}</n-a>
+            <n-a :href="gatewayControlUrl" target="_blank">{{ gatewayEndpoint }}</n-a>
           </n-text>
           <n-text v-if="gatewayStore.version" depth="3">
             Gateway
@@ -709,6 +709,7 @@ const failedChecks = computed(() => environmentCheck.value.filter((c) => c.statu
 
 const isGatewayRunning = computed(() => gatewayStore.isHealthy);
 const gatewayEndpoint = computed(() => gatewayStore.endpoint);
+const gatewayControlUrl = computed(() => gatewayStore.controlUrl);
 const gatewayPid = computed(() => gatewayStore.pid);
 const gatewayUptime = computed(() => gatewayStore.uptime);
 
@@ -1091,8 +1092,9 @@ async function handleRemoveInstance() {
 }
 
 function openControlUI() {
-  if (gatewayEndpoint.value) {
-    window.open(gatewayEndpoint.value, '_blank');
+  const url = gatewayControlUrl.value || gatewayEndpoint.value;
+  if (url) {
+    window.open(url, '_blank');
   } else {
     message.warning('Gateway 地址不可用');
   }

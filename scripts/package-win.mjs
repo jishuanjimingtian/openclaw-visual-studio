@@ -1,10 +1,11 @@
 import { spawnSync } from 'node:child_process';
-import { existsSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '..');
+const APP_VERSION = JSON.parse(readFileSync(path.join(ROOT, 'package.json'), 'utf8')).version;
 const JRE_DIR = path.join(ROOT, 'packaging', 'jre');
 const EB_CONFIG = path.join(ROOT, 'scripts', 'electron-builder.config.mjs');
 
@@ -21,6 +22,22 @@ const ghRepo =
   process.env.UPDATE_GITHUB_REPO ||
   (process.env.GITHUB_REPOSITORY?.split('/')[1] ?? 'openclaw-visual-studio');
 
+const ICON_PNG = path.join(ROOT, 'frontend', 'resources', 'icon.png');
+const ICON_ICO = path.join(ROOT, 'frontend', 'resources', 'icon.ico');
+
+function hasPackagingIcons() {
+  try {
+    return (
+      existsSync(ICON_PNG) &&
+      existsSync(ICON_ICO) &&
+      statSync(ICON_PNG).size > 100 &&
+      statSync(ICON_ICO).size > 100
+    );
+  } catch {
+    return false;
+  }
+}
+
 /** --prepackaged 不会生成 app-update.yml，需在 NSIS 前手动写入 */
 function ensureAppUpdateYml(unpackedDir) {
   const resourcesDir = path.join(ROOT, unpackedDir, 'resources');
@@ -35,7 +52,7 @@ function ensureAppUpdateYml(unpackedDir) {
     const url = genericUrl.endsWith('/') ? genericUrl : `${genericUrl}/`;
     content = `provider: generic\nurl: ${url}\n`;
   } else {
-    const base = `https://github.com/${ghOwner}/${ghRepo}/releases/download/latest/`;
+    const base = `https://github.com/${ghOwner}/${ghRepo}/releases/latest/download/`;
     const mirror = process.env.UPDATE_GITHUB_MIRROR || 'https://ghfast.top/';
     const prefix = mirror.endsWith('/') ? mirror : `${mirror}/`;
     content = `provider: generic\nurl: ${prefix}${base}\n`;
@@ -77,6 +94,15 @@ const shouldPublish =
   process.env.PACK_PUBLISH === '1' ||
   Boolean(process.env.GH_TOKEN);
 
+if (shouldPublish && !process.env.GH_TOKEN?.trim()) {
+  console.error('\n[package-win] 发布失败：未设置 GH_TOKEN');
+  console.error('[package-win] 请在 PowerShell 中先执行：');
+  console.error('  $env:GH_TOKEN = "你的 GitHub PAT"');
+  console.error('  npm run package:win:release');
+  console.error('[package-win] 或：$env:PACK_PUBLISH = "1"; $env:GH_TOKEN = "..."; npm run package:win');
+  process.exit(1);
+}
+
 try {
   if (isLite) {
     console.log('[package-win] Lite build: skipping embedded JRE (requires Java 17+ on target machine)');
@@ -85,7 +111,11 @@ try {
     }
   }
 
-  run('node', ['scripts/export-app-icon.mjs'], packageEnv);
+  if (hasPackagingIcons() && process.env.FORCE_ICON_EXPORT !== '1') {
+    console.log('[package-win] 已存在 icon.png / icon.ico，跳过 export-app-icon（设置 FORCE_ICON_EXPORT=1 可强制重新生成）');
+  } else {
+    run('node', ['scripts/export-app-icon.mjs'], packageEnv);
+  }
   run('node', ['scripts/prepare-packaging.mjs'], packageEnv);
 
   if (!isLite) {
@@ -100,10 +130,12 @@ try {
   if (shouldPublish) {
     nsisArgs.push('--publish', 'always');
     console.log('[package-win] 将发布到配置的更新源（GitHub Releases 或 UPDATE_GENERIC_URL）');
+  } else {
+    console.log('[package-win] 未设置 GH_TOKEN / PACK_PUBLISH=1，仅本地打包，不会上传到 GitHub');
   }
   run('npx', nsisArgs, packageEnv);
 
-  const installer = path.join(ROOT, outputDir, 'Clawhelm-0.1.0-setup.exe');
+  const installer = path.join(ROOT, outputDir, `Clawhelm-${APP_VERSION}-setup.exe`);
   if (existsSync(installer)) {
     const sizeMb = (statSync(installer).size / (1024 * 1024)).toFixed(1);
     console.log(`\n[package-win] 安装包已生成: ${installer} (${sizeMb} MB)`);

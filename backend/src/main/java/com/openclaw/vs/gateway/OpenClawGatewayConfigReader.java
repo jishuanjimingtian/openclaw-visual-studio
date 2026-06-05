@@ -4,9 +4,11 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.net.URI;
+import java.net.URLEncoder;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
@@ -119,6 +121,25 @@ public final class OpenClawGatewayConfigReader {
 
     public static String toWebSocketUrl(int port) {
         return "ws://127.0.0.1:" + port;
+    }
+
+    public static String toGatewayHttpEndpoint(int port) {
+        return "http://localhost:" + port;
+    }
+
+    /**
+     * Control UI URL with auth token in the URL fragment (not sent to HTTP server).
+     * See OpenClaw docs: {@code #token=<gateway.auth.token>}.
+     */
+    public static String toControlUiUrl(int port) {
+        String base = toGatewayHttpEndpoint(port);
+        return readGatewayToken()
+            .map(token -> base + "#token=" + encodeUriComponent(token))
+            .orElse(base);
+    }
+
+    private static String encodeUriComponent(String value) {
+        return URLEncoder.encode(value, StandardCharsets.UTF_8).replace("+", "%20");
     }
 
     /** Strips mistaken {@code /ws} suffix from legacy app config values. */

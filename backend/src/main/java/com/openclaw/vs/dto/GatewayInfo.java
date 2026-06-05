@@ -24,6 +24,8 @@ public class GatewayInfo {
     private String uptime;
     private String memoryUsage;
     private String endpoint;
+    /** Control UI URL with gateway auth token in the URL fragment when available */
+    private String controlUrl;
     private String message;
     /** 后端 WebSocket RPC 客户端是否已与 Gateway 完成握手 */
     private Boolean wsConnected;

@@ -53,6 +53,9 @@ export const useGatewayStore = defineStore('gateway', () => {
   const isActive = computed(() => isRunning.value || isStarting.value || wsConnected.value);
 
   const endpoint = computed(() => gatewayInfo.value?.endpoint || '');
+  const controlUrl = computed(
+    () => gatewayInfo.value?.controlUrl || gatewayInfo.value?.endpoint || '',
+  );
   const port = computed(() => gatewayInfo.value?.port || 18789);
   const version = computed(() => gatewayInfo.value?.version || '');
   const pid = computed(() => gatewayInfo.value?.pid ?? null);
@@ -442,6 +445,7 @@ export const useGatewayStore = defineStore('gateway', () => {
     processOnline,
     portReady,
     endpoint,
+    controlUrl,
     port,
     version,
     pid,

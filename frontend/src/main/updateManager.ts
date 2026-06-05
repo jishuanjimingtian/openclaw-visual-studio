@@ -10,7 +10,7 @@ import type {
 import {
   formatUpdateError,
   resolveUpdateFeeds,
-  type GenericUpdateFeed,
+  type UpdateFeed,
 } from './updateFeed';
 
 const AUTO_CHECK_DELAY_MS = 4000;
@@ -26,7 +26,7 @@ let initialized = false;
 let manualCheck = false;
 let pendingVersion: string | null = null;
 let suppressErrorEmit = false;
-let updateFeeds: GenericUpdateFeed[] = [];
+let updateFeeds: UpdateFeed[] = [];
 
 const state: AppUpdateState = {
   status: 'idle',
@@ -102,12 +102,15 @@ function notifyAvailable(version: string, releaseNotes: string | null, manual: b
   });
 }
 
-function isNotFoundError(err: unknown): boolean {
-  const raw = err instanceof Error ? err.message : String(err);
-  return /404|not found|cannot find|ENOENT/i.test(raw);
-}
-
-function applyFeed(feed: GenericUpdateFeed): void {
+function applyFeed(feed: UpdateFeed): void {
+  if (feed.provider === 'github') {
+    autoUpdater.setFeedURL({
+      provider: 'github',
+      owner: feed.owner,
+      repo: feed.repo,
+    });
+    return;
+  }
   autoUpdater.setFeedURL(feed);
 }
 
@@ -228,9 +231,7 @@ async function runCheck(options?: AppUpdateCheckOptions): Promise<AppUpdateState
 
   let lastError: unknown = null;
 
-  const attempts = feeds.length > 0
-    ? feeds
-    : [null];
+  const attempts: Array<UpdateFeed | null> = feeds.length > 0 ? feeds : [null];
 
   for (let index = 0; index < attempts.length; index += 1) {
     const feed = attempts[index];
@@ -246,9 +247,6 @@ async function runCheck(options?: AppUpdateCheckOptions): Promise<AppUpdateState
       return { ...state };
     } catch (err) {
       lastError = err;
-      if (isNotFoundError(err)) {
-        break;
-      }
     }
   }
 

@@ -630,6 +630,8 @@ export interface GatewayInfo {
   uptime?: string;
   memoryUsage?: string;
   endpoint?: string;
+  /** Control UI URL with gateway auth token in the URL fragment when available */
+  controlUrl?: string;
   message?: string;
   wsConnected?: boolean;
   /** vs-process | daemon | external */
