@@ -1,0 +1,279 @@
+/* 应用设置页 — 布局壳层（深浅主题见 --oc-config-*） */
+
+.settings-page {
+  min-height: 0;
+  flex: 1 1 0;
+  width: 100%;
+  max-width: none;
+  color: var(--oc-config-text);
+  font-size: 14px;
+  line-height: 1.55;
+  letter-spacing: 0.01em;
+}
+
+.settings-page .page-body {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  gap: 0;
+  min-height: 0;
+}
+
+.settings-page .refresh-hint {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--oc-config-text-muted);
+  white-space: nowrap;
+}
+
+.settings-pinned {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding-bottom: 14px;
+}
+
+.settings-scroll {
+  flex: 1 1 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-bottom: 16px;
+  padding-right: 2px;
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--oc-primary) 42%, transparent) transparent;
+}
+
+.settings-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+
+.settings-scroll::-webkit-scrollbar-track {
+  background: color-mix(in srgb, var(--oc-primary) 6%, transparent);
+  border-radius: 3px;
+}
+
+.settings-scroll::-webkit-scrollbar-thumb {
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--oc-primary) 42%, transparent);
+}
+
+.settings-scroll::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--oc-primary) 58%, transparent);
+}
+
+/* ── 状态条 ── */
+.settings-status {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 12px 16px;
+  border-radius: var(--oc-radius-lg);
+  background: var(--oc-surface);
+  border: 1px solid var(--oc-config-border);
+  box-shadow: var(--oc-shadow-card);
+}
+
+.settings-status-leading {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.settings-status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.settings-status-dot.is-ok {
+  background: var(--oc-success);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--oc-success) 22%, transparent);
+}
+
+.settings-status-dot.is-partial {
+  background: var(--oc-warning);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--oc-warning) 22%, transparent);
+}
+
+.settings-status-dot.is-off {
+  background: var(--oc-error);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--oc-error) 20%, transparent);
+}
+
+.settings-status-title {
+  display: block;
+  font-size: 15px;
+  font-weight: 650;
+  color: var(--oc-config-status-title);
+  letter-spacing: -0.01em;
+}
+
+.settings-status-sub {
+  display: block;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--oc-config-status-sub);
+  margin-top: 2px;
+}
+
+.settings-status-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+/* ── 指标行 ── */
+.settings-metrics {
+  flex-shrink: 0;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+@media (max-width: 900px) {
+  .settings-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 480px) {
+  .settings-metrics {
+    grid-template-columns: 1fr;
+  }
+}
+
+.settings-metric {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: var(--oc-radius-md);
+  background: var(--oc-stat-bg);
+  border: 1px solid var(--oc-stat-border);
+  box-shadow: var(--oc-shadow-card);
+  min-width: 0;
+}
+
+.settings-metric-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.settings-metric--ok .settings-metric-icon {
+  color: var(--oc-success);
+  background: color-mix(in srgb, var(--oc-success) 14%, transparent);
+}
+
+.settings-metric--warn .settings-metric-icon {
+  color: var(--oc-warning);
+  background: color-mix(in srgb, var(--oc-warning) 14%, transparent);
+}
+
+.settings-metric--rpc .settings-metric-icon {
+  color: var(--oc-primary);
+  background: var(--oc-config-metric-icon-model-bg);
+}
+
+.settings-metric--runtime .settings-metric-icon {
+  color: var(--oc-metric);
+  background: var(--oc-config-metric-icon-timeout-bg);
+}
+
+.settings-metric-body {
+  min-width: 0;
+  flex: 1;
+}
+
+.settings-metric-label {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--oc-config-label);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.settings-metric-value {
+  display: block;
+  font-size: 14px;
+  font-weight: 650;
+  color: var(--oc-config-metric-value);
+  margin-top: 3px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── 双栏工作区 ── */
+.settings-workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(300px, 360px);
+  gap: 14px;
+  align-items: stretch;
+}
+
+@media (max-width: 1024px) {
+  .settings-workspace {
+    grid-template-columns: 1fr;
+    align-items: start;
+  }
+
+  .settings-stack {
+    height: auto;
+  }
+
+  .settings-stack .settings-panel--grow {
+    flex: none;
+    display: block;
+  }
+
+  .settings-stack .settings-panel--grow .settings-panel-body {
+    display: block;
+  }
+}
+
+.settings-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+  height: 100%;
+}
+
+.settings-stack .settings-panel--grow {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.settings-stack .settings-panel--grow .settings-panel-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+/* ── 全宽区块 ── */
+.settings-full {
+  min-width: 0;
+  flex-shrink: 0;
+}

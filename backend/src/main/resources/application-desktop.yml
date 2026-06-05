@@ -1,0 +1,39 @@
+# 桌面安装包生产 profile；datasource URL / workspace / 日志路径由 Electron backendManager 通过 CLI 注入
+spring:
+  datasource:
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+
+  h2:
+    console:
+      enabled: false
+
+  jpa:
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: false
+
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false
+
+management:
+  endpoint:
+    health:
+      show-details: never
+
+app:
+  security:
+    api-key-encryption-key: ${APP_ENCRYPTION_KEY:clawhelm-desktop-key}
+
+logging:
+  level:
+    root: INFO
+    com.openclaw: INFO
+    org.springframework.web: WARN
+    org.hibernate.SQL: WARN
+    org.flywaydb: INFO

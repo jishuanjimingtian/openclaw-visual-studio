@@ -1,0 +1,212 @@
+/* Claw 知识库 — 统一布局样式 */
+
+.knowledge-page {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+.kb-status-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+  flex-shrink: 0;
+  margin-bottom: 8px;
+  padding: 6px 10px;
+  font-size: 12px;
+  color: var(--oc-knowledge-detail-text);
+  background: var(--oc-surface-elevated);
+  border: 1px solid var(--oc-knowledge-graph-border);
+  border-radius: var(--oc-radius-md, 10px);
+}
+
+.kb-status-bar .dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.kb-status-bar .dot.on { background: var(--oc-success); }
+.kb-status-bar .dot.off { background: var(--oc-error); }
+
+.kb-status-bar .sep { opacity: 0.45; }
+.kb-status-bar .ok { color: var(--oc-success); }
+.kb-status-bar .warn { color: var(--oc-warning); }
+
+.kb-status-bar code {
+  font-size: 11px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: var(--oc-knowledge-layout-bg);
+  border: 1px solid var(--oc-knowledge-graph-border);
+  max-width: 240px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: bottom;
+}
+
+.kb-alert {
+  flex-shrink: 0;
+  margin-bottom: 8px;
+}
+
+.kb-workspace-pick {
+  flex-shrink: 0;
+  margin-bottom: 8px;
+}
+
+.kb-workspace-pick :deep(.n-collapse-item__header) {
+  font-size: 12px;
+  padding: 4px 0 !important;
+}
+
+/* 三栏主区域 */
+.kb-shell {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  gap: 0;
+  border: 1px solid var(--oc-knowledge-graph-border);
+  border-radius: var(--oc-radius-lg, 12px);
+  overflow: hidden;
+  background: var(--oc-surface);
+}
+
+/* 左：文件 */
+.kb-sidebar {
+  width: 220px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border-right: 1px solid var(--oc-knowledge-graph-border);
+  background: var(--oc-surface-elevated);
+}
+
+.kb-sidebar-head {
+  padding: 10px 12px 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--oc-knowledge-detail-muted);
+  border-bottom: 1px solid var(--oc-knowledge-graph-border);
+}
+
+.kb-sidebar-tree {
+  flex: 1;
+  min-height: 80px;
+  overflow: auto;
+  padding: 6px 8px;
+}
+
+.kb-sidebar-foot {
+  flex-shrink: 0;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  border-top: 1px solid var(--oc-knowledge-graph-border);
+}
+
+/* 中：主内容 */
+.kb-main {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--oc-knowledge-layout-bg);
+}
+
+.kb-toolbar {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--oc-knowledge-graph-border);
+  background: var(--oc-surface);
+}
+
+.kb-toolbar .search-input {
+  width: min(200px, 100%);
+}
+
+.kb-toolbar-spacer {
+  flex: 1;
+  min-width: 8px;
+}
+
+.kb-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
+.kb-body :deep(.graph-wrap) {
+  flex: 1;
+  min-height: 0 !important;
+  height: 100% !important;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.kb-body :deep(.n-spin-container),
+.kb-body :deep(.n-spin-content) {
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.kb-editor-wrap {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 10px;
+}
+
+.kb-search-panel {
+  flex-shrink: 0;
+  max-height: 140px;
+  overflow: auto;
+  border-top: 1px solid var(--oc-knowledge-graph-border);
+  background: var(--oc-surface);
+}
+
+/* 右：检视（组件根节点 .kb-inspector-panel） */
+.kb-shell :deep(.kb-inspector-panel) {
+  width: min(300px, 32vw);
+  flex-shrink: 0;
+  min-height: 0;
+  border-left: 1px solid var(--oc-knowledge-detail-border);
+  background: var(--oc-knowledge-detail-bg);
+}
+
+@media (max-width: 900px) {
+  .kb-shell {
+    flex-direction: column;
+  }
+
+  .kb-sidebar {
+    width: 100%;
+    max-height: 180px;
+    border-right: none;
+    border-bottom: 1px solid var(--oc-knowledge-graph-border);
+  }
+
+  .kb-shell :deep(.kb-inspector-panel) {
+    width: 100%;
+    max-height: 240px;
+    border-left: none;
+    border-top: 1px solid var(--oc-knowledge-detail-border);
+  }
+}

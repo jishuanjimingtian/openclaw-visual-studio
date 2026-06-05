@@ -1,0 +1,273 @@
+/* 模型管理 — OpenClaw 概览区 */
+
+.models-overview {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.models-status {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 12px 16px;
+  border-radius: var(--oc-radius-lg);
+  background: var(--oc-surface);
+  border: 1px solid var(--oc-config-border);
+  box-shadow: var(--oc-shadow-card);
+}
+
+.models-status-leading {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.models-status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.models-status-dot.is-on {
+  background: var(--oc-success);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--oc-success) 22%, transparent);
+}
+
+.models-status-dot.is-off {
+  background: var(--oc-warning);
+}
+
+.models-status-title {
+  display: block;
+  font-size: 15px;
+  font-weight: 650;
+  color: var(--oc-config-status-title);
+  letter-spacing: -0.01em;
+}
+
+.models-status-sub {
+  display: block;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--oc-config-status-sub);
+  margin-top: 2px;
+}
+
+.models-status-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.models-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+@media (max-width: 900px) {
+  .models-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 480px) {
+  .models-metrics {
+    grid-template-columns: 1fr;
+  }
+}
+
+.models-metric {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: var(--oc-radius-md);
+  background: var(--oc-stat-bg);
+  border: 1px solid var(--oc-stat-border);
+  box-shadow: var(--oc-shadow-card);
+  min-width: 0;
+}
+
+.models-metric-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: var(--oc-primary);
+  background: var(--oc-config-metric-icon-model-bg);
+}
+
+.models-metric-icon--fallback {
+  color: var(--oc-metric);
+  background: var(--oc-config-metric-icon-timeout-bg);
+}
+
+.models-metric-icon--count {
+  color: var(--oc-accent);
+  background: var(--oc-config-metric-icon-tools-bg);
+}
+
+.models-metric-body {
+  min-width: 0;
+  flex: 1;
+}
+
+.models-metric-label {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--oc-config-label);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.models-metric-value {
+  display: block;
+  font-size: 13px;
+  font-weight: 650;
+  color: var(--oc-config-metric-value);
+  margin-top: 3px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.models-metric-value.mono {
+  font-family: var(--oc-config-font-mono);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+/* ── 可折叠配置详情 ── */
+.models-overview-collapse {
+  border-radius: var(--oc-radius-lg);
+  background: var(--oc-surface);
+  border: 1px solid var(--oc-config-border-subtle);
+  overflow: hidden;
+}
+
+.models-overview-collapse :deep(.n-collapse-item) {
+  border: none;
+}
+
+.models-overview-collapse :deep(.n-collapse-item__header) {
+  padding: 10px 14px !important;
+  font-size: 13px;
+  background: var(--oc-config-panel-head-bg);
+  border-bottom: 1px solid transparent;
+  transition: border-color var(--oc-transition);
+}
+
+.models-overview-collapse :deep(.n-collapse-item--active .n-collapse-item__header) {
+  border-bottom-color: var(--oc-config-border-subtle);
+}
+
+.models-overview-collapse :deep(.n-collapse-item__header-main) {
+  flex: 1;
+  min-width: 0;
+}
+
+.models-overview-collapse :deep(.n-collapse-item__content-inner) {
+  padding: 0 !important;
+}
+
+.models-overview-collapse-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  min-width: 0;
+}
+
+.models-overview-collapse-title {
+  font-size: 13px;
+  font-weight: 650;
+  color: var(--oc-config-heading);
+  flex-shrink: 0;
+}
+
+.models-overview-collapse-meta {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--oc-config-text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.models-overview-extra {
+  padding: 12px 16px 14px;
+}
+
+.models-overview-extra-title {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--oc-config-label);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 8px;
+}
+
+.models-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.models-chip {
+  font-size: 12px;
+  font-weight: 500;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: var(--oc-config-chip-bg);
+  border: 1px solid var(--oc-config-chip-border);
+  color: var(--oc-config-chip-text);
+  font-family: var(--oc-config-font-mono);
+}
+
+.models-chip--primary {
+  border-color: color-mix(in srgb, var(--oc-success) 35%, var(--oc-config-chip-border));
+  color: var(--oc-success);
+  background: color-mix(in srgb, var(--oc-success) 8%, var(--oc-surface));
+}
+
+.models-endpoints {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--oc-config-border-subtle);
+}
+
+.models-endpoint-line {
+  font-size: 12px;
+  color: var(--oc-config-text-secondary);
+}
+
+.models-endpoint-line code {
+  font-family: var(--oc-config-font-mono);
+  font-size: 11px;
+  color: var(--oc-config-code-fg);
+}
+
+.models-path {
+  margin-top: 8px;
+  font-size: 11px;
+  font-family: var(--oc-config-font-mono);
+  color: var(--oc-config-text-muted);
+  word-break: break-all;
+  line-height: 1.5;
+}

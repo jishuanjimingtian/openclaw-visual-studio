@@ -1,0 +1,84 @@
+spring:
+  application:
+    name: openclaw-vs-backend
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.H2Dialect
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+
+  websocket:
+    max-text-message-size: 128KB
+
+server:
+  port: 8089
+  servlet:
+    context-path: /api/v1
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: when-authorized
+
+app:
+  gateway:
+    auto-connect: true
+    auto-adopt-on-startup: true
+    prefer-daemon: true
+    ws-url:
+    reconnect-interval-ms: 3000
+    max-reconnect-attempts: 15
+    token:
+
+  deployment:
+    workspace: ./deployments
+    timeout-minutes: 30
+    mirrors:
+      github: https://ghproxy.com/
+      pip: https://pypi.tuna.tsinghua.edu.cn/simple/
+      npm: https://registry.npmmirror.com/
+
+  models:
+    providers:
+      - openai
+      - claude
+      - ollama
+      - deepseek
+      - custom
+    default-max-tokens: 4096
+
+  skill-market:
+    cache-seconds: 300
+    clawhub-base-url: https://clawhub.ai
+    github-enabled: true
+    clawhub-enabled: true
+    github-search-query: "openclaw skill in:name,description,readme"
+    review-required: true
+    default-locale: zh
+    localize-on-install: true
+    translate-descriptions: false
+    translate-names: false
+    translate-model: qwen-plus
+    sources:
+      - name: ClawdHub
+        url: https://clawhub.ai/api/v1
+        enabled: true
+      - name: GitHub
+        url: https://api.github.com/search/repositories
+        enabled: true
+
+logging:
+  level:
+    root: INFO
+    org.flywaydb: INFO

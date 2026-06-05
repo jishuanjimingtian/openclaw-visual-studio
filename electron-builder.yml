@@ -1,0 +1,52 @@
+appId: com.openclaw.clawhelm
+productName: Clawhelm
+copyright: Copyright 2025 驭爪 Studio
+
+directories:
+  output: out
+  buildResources: frontend/resources
+
+files:
+  - dist/**/*
+  - package.json
+
+# extraResources 由 scripts/electron-builder.config.mjs 动态生成（JRE 仅在 packaging/jre/bin/java 存在时打入）
+extraResources:
+  - from: backend/target
+    to: backend
+    filter:
+      - "openclaw-vs-backend-*.jar"
+      - "!**/*.original"
+  - from: frontend/resources/icon.ico
+    to: app-icon.ico
+
+win:
+  target: nsis
+  icon: icon.ico
+  artifactName: ${productName}-${version}-setup.${ext}
+  signAndEditExecutable: false
+  signDlls: false
+
+mac:
+  target: dmg
+  icon: icon.png
+  category: public.app-category.developer-tools
+  artifactName: ${productName}-${version}.${ext}
+
+linux:
+  target: AppImage
+  icon: icon.png
+  artifactName: ${productName}-${version}.${ext}
+
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  allowElevation: true
+  createDesktopShortcut: always
+  createStartMenuShortcut: true
+  shortcutName: 驭爪
+  uninstallDisplayName: 驭爪 (Clawhelm)
+  installerIcon: icon.ico
+  uninstallerIcon: icon.ico
+  include: scripts/installer.nsh

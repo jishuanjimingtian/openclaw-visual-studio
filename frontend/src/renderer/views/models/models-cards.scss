@@ -1,0 +1,165 @@
+/* 模型管理 — 市场卡片与我的模型卡片 */
+
+.market-card {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  border-radius: var(--oc-radius-md) !important;
+  border: 1px solid var(--oc-config-border) !important;
+  background: var(--oc-config-item-bg) !important;
+  transition:
+    border-color var(--oc-transition),
+    box-shadow var(--oc-transition),
+    transform var(--oc-transition);
+}
+
+.market-card:hover {
+  border-color: var(--oc-config-item-hover-border) !important;
+  box-shadow: var(--oc-shadow-card-hover);
+}
+
+.market-card.configured {
+  border-color: color-mix(in srgb, var(--oc-success) 40%, var(--oc-config-border)) !important;
+  background: color-mix(in srgb, var(--oc-success) 4%, var(--oc-config-item-bg)) !important;
+}
+
+.market-card :deep(.n-card__footer) {
+  padding-top: 8px;
+  border-top: 1px solid var(--oc-config-border-subtle);
+}
+
+.market-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.market-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.market-title h3 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 650;
+  color: var(--oc-config-text);
+  letter-spacing: -0.01em;
+}
+
+.context-hint {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--oc-config-text-muted);
+  flex-shrink: 0;
+}
+
+.market-desc {
+  flex: 1;
+  margin: 0 0 8px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--oc-config-text-secondary);
+  line-height: 1.5;
+}
+
+.market-card .model-ref {
+  font-size: 11px;
+  font-family: var(--oc-config-font-mono);
+  color: var(--oc-config-code-fg);
+  word-break: break-all;
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: var(--oc-config-code-bg);
+  border: 1px solid var(--oc-config-code-border);
+}
+
+/* ── 我的模型卡片 ── */
+.mine-card {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  border-radius: var(--oc-radius-md) !important;
+  border: 1px solid var(--oc-config-border) !important;
+  background: var(--oc-config-item-bg) !important;
+  transition:
+    border-color var(--oc-transition),
+    box-shadow var(--oc-transition),
+    opacity var(--oc-transition);
+}
+
+.mine-card:hover {
+  border-color: var(--oc-config-item-hover-border) !important;
+  box-shadow: var(--oc-shadow-card-hover);
+}
+
+.mine-card.is-disabled {
+  opacity: 0.72;
+}
+
+.mine-card.is-primary {
+  border-color: color-mix(in srgb, var(--oc-primary) 32%, var(--oc-config-border)) !important;
+}
+
+.mine-card :deep(.n-card-header) {
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--oc-config-border-subtle);
+}
+
+.mine-card :deep(.n-card__footer) {
+  padding-top: 10px;
+  border-top: 1px solid var(--oc-config-border-subtle);
+}
+
+.mine-card-name {
+  font-size: 15px;
+  font-weight: 650;
+  color: var(--oc-config-text);
+}
+
+.mine-card-body {
+  min-height: 72px;
+}
+
+.mine-card-ref {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--oc-config-code-bg);
+  border: 1px solid var(--oc-config-code-border);
+}
+
+.mine-card-ref-k {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--oc-config-label);
+}
+
+.mine-card-ref-v {
+  font-size: 12px;
+  font-family: var(--oc-config-font-mono);
+  font-weight: 500;
+  color: var(--oc-config-code-fg);
+  word-break: break-all;
+}
+
+.mine-card-meta {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--oc-config-text-muted);
+}
+
+.mine-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: flex-end;
+}

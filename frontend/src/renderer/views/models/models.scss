@@ -1,0 +1,165 @@
+/* 模型管理 — 页面壳层 */
+
+.models-page {
+  min-height: 0;
+  width: 100%;
+  max-width: none;
+  color: var(--oc-config-text);
+  font-size: 14px;
+  line-height: 1.55;
+  letter-spacing: 0.01em;
+}
+
+.models-page .refresh-hint {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--oc-config-text-muted);
+  white-space: nowrap;
+}
+
+.models-shell {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  overflow: hidden;
+  padding-bottom: 8px;
+  width: 100%;
+  max-width: none;
+  margin: 0;
+}
+
+.models-shell > .models-overview {
+  flex-shrink: 0;
+}
+
+/* ── Tabs 容器 ── */
+.models-workspace {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  border-radius: var(--oc-radius-lg);
+  background: var(--oc-surface);
+  border: 1px solid var(--oc-config-border);
+  box-shadow: var(--oc-shadow-card);
+  overflow: hidden;
+}
+
+.models-tabs {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.models-tabs :deep(.n-tabs) {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.models-tabs :deep(.n-tabs-nav) {
+  padding: 0 16px;
+  background: var(--oc-config-panel-head-bg);
+  border-bottom: 1px solid var(--oc-config-border-subtle);
+}
+
+.models-tabs :deep(.n-tabs-tab) {
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.models-tabs :deep(.n-tabs-pane-wrapper) {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.models-tabs :deep(.n-tab-pane) {
+  padding: 0;
+  height: 100%;
+  overflow: hidden;
+}
+
+.models-tab-body {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  padding: 14px 16px 12px;
+}
+
+.models-tab-body > .models-market-layout {
+  flex: 1;
+  min-height: 0;
+}
+
+.models-panel-toolbar {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 12px 14px;
+  margin-bottom: 12px;
+  border-radius: var(--oc-radius-md);
+  background: var(--oc-config-item-bg);
+  border: 1px solid var(--oc-config-border-subtle);
+}
+
+/* 模型列表滚动区 */
+.models-tab-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-right: 4px;
+}
+
+.models-toolbar-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+}
+
+.models-pagination {
+  flex-shrink: 0;
+  display: flex;
+  justify-content: center;
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--oc-config-border-subtle);
+}
+
+.models-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 12px;
+}
+
+@media (max-width: 480px) {
+  .models-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.models-category-hint {
+  display: block;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--oc-config-text-muted);
+  margin-bottom: 12px;
+  line-height: 1.45;
+}
+
+.models-page :deep(.n-form-item-label) {
+  color: var(--oc-config-text-secondary) !important;
+}

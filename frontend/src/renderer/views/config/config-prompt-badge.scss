@@ -1,0 +1,43 @@
+/* Prompt 状态徽章 — PromptStatusBadge */
+
+.prompt-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.45;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.prompt-badge-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--oc-success);
+  flex-shrink: 0;
+}
+
+.prompt-badge-icon {
+  flex-shrink: 0;
+  color: var(--oc-primary);
+}
+
+.prompt-badge--config {
+  color: var(--oc-config-prompt-config);
+}
+
+.prompt-badge--bootstrap {
+  color: var(--oc-config-prompt-bootstrap);
+}
+
+.prompt-badge--none {
+  color: var(--oc-config-prompt-none);
+}
+
+.prompt-badge-text {
+  color: inherit;
+}

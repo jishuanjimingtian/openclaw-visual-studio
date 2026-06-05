@@ -1,0 +1,33 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "skipLibCheck": true,
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noEmit": true,
+    "jsx": "preserve",
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["frontend/src/renderer/*"],
+      "@main/*": ["frontend/src/main/*"],
+      "@preload/*": ["frontend/src/preload/*"],
+      "@shared/*": ["frontend/src/shared/*"]
+    },
+    "types": ["node", "vitest/globals", "@vue/runtime-core"]
+  },
+  "include": [
+    "frontend/src/**/*.ts",
+    "frontend/src/**/*.d.ts",
+    "frontend/src/**/*.tsx",
+    "frontend/src/**/*.vue"
+  ],
+  "exclude": ["node_modules", "dist", "out"]
+}

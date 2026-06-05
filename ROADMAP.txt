@@ -1,0 +1,18 @@
+# Clawhelm 重构路线 — Phase 1 地基稳固
+# Last updated: 2026-06-04 17:53
+
+## TASKS (priority order)
+
+1. [IN PROGRESS] 统一 Gateway 状态管理 - 抽取 useGatewayStatus composable, 替换4个页面重复实现
+2. [ ] 全局错误边界 - ErrorBoundary + backendUnreachable 全局提示
+3. [ ] Chat 体验打磨 - Markdown渲染 + 发送失败重试 + SSE断线重连
+4. [ ] Settings 后端实现 - 持久化主题/语言/Gateway参数到后端
+5. [ ] Sessions 分页+搜索 - 补全分页接口和前端搜索
+6. [ ] 部署进度 SSE/WS 化 - 替换轮询为事件推送
+
+## MODULES AFFECTED
+- Dashboard, Chat, Timers, Sessions (Gateway status bar)
+- Chat (Markdown, reconnect)
+- Settings (backend persistence)
+- Sessions (pagination)
+- Deployment (SSE progress)

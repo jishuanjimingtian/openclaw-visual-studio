@@ -1,0 +1,353 @@
+﻿/* 配置中心 — 页面级布局（深浅主题见 --oc-config-*） */
+
+.config-page {
+  min-height: 0;
+  width: 100%;
+  max-width: none;
+  color: var(--oc-config-text);
+  font-size: 14px;
+  line-height: 1.55;
+  letter-spacing: 0.01em;
+}
+
+.config-page .refresh-hint {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--oc-config-text-muted);
+  white-space: nowrap;
+}
+
+/* ── Shell ── */
+.config-shell {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-bottom: 12px;
+  width: 100%;
+  max-width: none;
+  margin: 0;
+}
+
+/* ── 状态条 ── */
+.config-status {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 12px 16px;
+  border-radius: var(--oc-radius-lg);
+  background: var(--oc-surface);
+  border: 1px solid var(--oc-config-border);
+  box-shadow: var(--oc-shadow-card);
+}
+
+.config-status-leading {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.config-status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.config-status-dot.is-on {
+  background: var(--oc-success);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--oc-success) 22%, transparent);
+}
+
+.config-status-dot.is-off {
+  background: var(--oc-warning);
+}
+
+.config-status-text {
+  min-width: 0;
+}
+
+.config-status-title {
+  display: block;
+  font-size: 15px;
+  font-weight: 650;
+  line-height: 1.35;
+  color: var(--oc-config-status-title);
+  letter-spacing: -0.01em;
+}
+
+.config-status-sub {
+  display: block;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--oc-config-status-sub);
+  margin-top: 2px;
+}
+
+.config-status-path {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: min(420px, 48vw);
+  padding: 6px 10px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 500;
+  font-family: var(--oc-config-font-mono);
+  color: var(--oc-config-path-fg);
+  background: var(--oc-config-path-bg);
+  border: 1px solid var(--oc-config-path-border);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background var(--oc-transition), border-color var(--oc-transition);
+}
+
+.config-status-path:hover {
+  background: color-mix(in srgb, var(--oc-primary) 12%, var(--oc-config-path-bg));
+  border-color: color-mix(in srgb, var(--oc-primary) 28%, var(--oc-config-path-border));
+}
+
+.config-inline-alert {
+  flex-shrink: 0;
+}
+
+/* ── 指标行 ── */
+.config-metrics {
+  flex-shrink: 0;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+@media (max-width: 900px) {
+  .config-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 480px) {
+  .config-metrics {
+    grid-template-columns: 1fr;
+  }
+}
+
+.config-metric {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: var(--oc-radius-md);
+  background: var(--oc-stat-bg);
+  border: 1px solid var(--oc-stat-border);
+  box-shadow: var(--oc-shadow-card);
+  min-width: 0;
+}
+
+.config-metric-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.config-metric--model .config-metric-icon {
+  color: var(--oc-primary);
+  background: var(--oc-config-metric-icon-model-bg);
+}
+
+.config-metric--timeout .config-metric-icon {
+  color: var(--oc-metric);
+  background: var(--oc-config-metric-icon-timeout-bg);
+}
+
+.config-metric--tools .config-metric-icon {
+  color: var(--oc-accent);
+  background: var(--oc-config-metric-icon-tools-bg);
+}
+
+.config-metric--workspace .config-metric-icon {
+  color: var(--oc-config-text-muted);
+  background: var(--oc-config-metric-icon-workspace-bg);
+}
+
+.config-metric-body {
+  min-width: 0;
+  flex: 1;
+}
+
+.config-metric-label {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--oc-config-label);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.config-metric-value {
+  display: block;
+  font-size: 14px;
+  font-weight: 650;
+  color: var(--oc-config-metric-value);
+  margin-top: 3px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  letter-spacing: -0.01em;
+}
+
+.config-fallbacks {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 10px 14px;
+  border-radius: var(--oc-radius-md);
+  background: var(--oc-config-fallback-bg);
+  border: 1px solid var(--oc-config-fallback-border);
+}
+
+.config-fallbacks-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--oc-config-text-muted);
+}
+
+.config-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.config-chip {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--oc-config-chip-text);
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: var(--oc-config-chip-bg);
+  border: 1px solid var(--oc-config-chip-border);
+}
+
+/* ── 主工作区双栏 ── */
+.config-workspace {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(300px, 380px);
+  gap: 14px;
+  align-items: start;
+}
+
+@media (max-width: 1024px) {
+  .config-workspace {
+    grid-template-columns: 1fr;
+  }
+}
+
+.config-panel {
+  border-radius: var(--oc-radius-lg);
+  background: var(--oc-surface);
+  border: 1px solid var(--oc-config-border);
+  box-shadow: var(--oc-shadow-card);
+  overflow: hidden;
+  min-width: 0;
+}
+
+.config-panel--settings {
+  position: sticky;
+  top: 0;
+}
+
+@media (max-width: 1024px) {
+  .config-panel--settings {
+    position: static;
+  }
+}
+
+.config-panel-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--oc-config-border-subtle);
+  background: var(--oc-config-panel-head-bg);
+}
+
+.config-panel-title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 650;
+  color: var(--oc-config-heading);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  letter-spacing: -0.01em;
+}
+
+.config-panel-title-icon {
+  color: var(--oc-primary);
+  display: flex;
+}
+
+.config-panel-desc {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--oc-config-text-muted);
+  margin-top: 4px;
+  line-height: 1.45;
+}
+
+.config-panel-badge {
+  flex-shrink: 0;
+}
+
+.config-panel-toolbar {
+  padding: 0 16px 12px;
+  border-bottom: 1px solid var(--oc-config-border-subtle);
+}
+
+.config-panel-body {
+  padding: 12px 16px 16px;
+  min-height: 120px;
+}
+
+.config-panel-loading,
+.config-panel-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 160px;
+  padding: 24px;
+  color: var(--oc-config-text-muted);
+}
+
+.config-agent-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Naive 表单在配置页内的标签对比度 */
+.config-page :deep(.n-form-item-label) {
+  color: var(--oc-config-text-secondary) !important;
+  font-weight: 500;
+}
+
+.config-page :deep(.n-form-item-label__text) {
+  font-size: 12px;
+}

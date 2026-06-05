@@ -1,0 +1,43 @@
+# Dependencies
+node_modules/
+frontend/node_modules/
+
+# Build output
+dist/
+frontend/resources/.icon-processed.png
+out/
+backend/target/
+packaging/
+
+# IDE
+.idea/
+*.iml
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+ehthumbs.db
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Data
+backend/data/
+backend/deployments/
+*.db
+*.mv.db
+*.trace.db
+
+# Test coverage
+frontend/tests/coverage/
+backend/target/site/jacoco/
+coverage/
+
+# Logs
+*.log
+logs/

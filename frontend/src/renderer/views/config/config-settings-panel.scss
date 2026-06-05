@@ -1,0 +1,134 @@
+/* 全局设置侧栏 — ConfigSettingsPanel */
+
+.settings-panel {
+  padding: 14px 16px 16px;
+  color: var(--oc-config-text);
+}
+
+.settings-section + .settings-section {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--oc-config-border-subtle);
+}
+
+.settings-section-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.settings-section-title {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 650;
+  color: var(--oc-config-heading);
+  letter-spacing: -0.01em;
+}
+
+.settings-section-meta {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--oc-config-text-muted);
+  font-family: var(--oc-config-font-mono);
+}
+
+.settings-form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 12px;
+}
+
+.settings-form-grid .span-2 {
+  grid-column: span 2;
+}
+
+.settings-form :deep(.n-form-item) {
+  margin-bottom: 10px;
+}
+
+.settings-form :deep(.n-form-item-label) {
+  color: var(--oc-config-text-secondary) !important;
+}
+
+.settings-prompt-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 12px 0;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: var(--oc-config-prompt-box-bg);
+  border: 1px dashed var(--oc-config-prompt-box-border);
+}
+
+.settings-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--oc-config-label);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.settings-panel .n-button + .n-button {
+  margin-top: 8px;
+}
+
+.settings-copy {
+  margin: 0 0 10px;
+  font-size: 12px;
+  line-height: 1.65;
+  color: var(--oc-config-text-secondary);
+}
+
+.settings-copy code {
+  font-size: 11px;
+  font-weight: 500;
+  font-family: var(--oc-config-font-mono);
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: var(--oc-config-code-bg);
+  color: var(--oc-config-code-fg);
+  border: 1px solid var(--oc-config-code-border);
+}
+
+.settings-preview {
+  margin: 0 0 10px;
+  padding: 10px 12px;
+  border-left: 3px solid var(--oc-primary);
+  border-radius: 0 8px 8px 0;
+  font-size: 12px;
+  line-height: 1.6;
+  font-style: italic;
+  color: var(--oc-config-preview-text);
+  background: var(--oc-config-preview-bg);
+}
+
+.settings-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--oc-config-text-muted);
+  margin-bottom: 10px;
+}
+
+.settings-meta code {
+  font-size: 11px;
+  font-family: var(--oc-config-font-mono);
+  color: var(--oc-config-code-fg);
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@media (max-width: 640px) {
+  .settings-form-grid,
+  .settings-form-grid .span-2 {
+    grid-template-columns: 1fr;
+    grid-column: auto;
+  }
+}

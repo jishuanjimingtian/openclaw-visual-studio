@@ -1,0 +1,21 @@
+/* 配置中心 — Drawer（挂载到 body，使用主题令牌） */
+
+.config-prompt-drawer .prompt-drawer-body {
+  margin: 0;
+  padding: 12px 14px;
+  border-radius: var(--oc-radius-md);
+  background: var(--oc-config-drawer-bg);
+  border: 1px solid var(--oc-config-drawer-border);
+  font-size: 12px;
+  line-height: 1.7;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: min(70vh, 560px);
+  overflow: auto;
+  font-family: var(--oc-config-font-mono);
+  color: var(--oc-config-drawer-text);
+}
+
+[data-theme='dark'] .config-prompt-drawer .prompt-drawer-body {
+  color: var(--oc-config-text);
+}

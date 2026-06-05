@@ -1,0 +1,59 @@
+/* 模型管理 — 市场侧栏与布局 */
+
+.models-market-layout {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 168px minmax(0, 1fr);
+  gap: 14px;
+  align-items: stretch;
+  overflow: hidden;
+}
+
+@media (max-width: 768px) {
+  .models-market-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+.models-category-nav {
+  min-height: 0;
+  max-height: 100%;
+  border-radius: var(--oc-radius-md);
+  border: 1px solid var(--oc-config-border);
+  background: var(--oc-config-item-bg);
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 6px;
+}
+
+.models-category-nav :deep(.n-menu-item) {
+  border-radius: 8px;
+  margin: 2px 0;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.models-category-nav :deep(.n-menu-item-content--selected) {
+  font-weight: 650;
+}
+
+.models-market-main {
+  min-width: 0;
+  min-height: 0;
+}
+
+@media (max-width: 768px) {
+  .models-market-layout {
+    overflow: visible;
+  }
+
+  .models-category-nav {
+    max-height: 200px;
+  }
+
+  .models-market-main.models-tab-scroll {
+    max-height: min(52vh, 520px);
+  }
+}
