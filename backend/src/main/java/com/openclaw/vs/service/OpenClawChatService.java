@@ -12,7 +12,6 @@ import com.openclaw.vs.dto.OpenClawChatStatusDto;
 import com.openclaw.vs.exception.BadRequestException;
 import com.openclaw.vs.gateway.GatewayWebSocketClient;
 import com.openclaw.vs.dto.ChatPartDto;
-import com.openclaw.vs.exception.BadRequestException;
 import com.openclaw.vs.util.ChatMessageMapper;
 import com.openclaw.vs.util.GatewayChatPayloadBuilder;
 import lombok.RequiredArgsConstructor;
@@ -64,10 +63,10 @@ public class OpenClawChatService {
 
   private ObjectNode buildSendParams(ChatSendRequest request, String runId) throws Exception {
     List<ChatPartDto> parts = request.getParts();
-    boolean hasParts = parts != null && !parts.isEmpty();
+    boolean hasMediaParts = parts != null && parts.stream().anyMatch(this::isMediaPart);
     String message = request.getMessage() != null ? request.getMessage().trim() : "";
 
-    if (hasParts) {
+    if (hasMediaParts) {
       if (parts.size() > ChatAttachmentMimeGuard.maxAttachmentsPerMessage()) {
         throw new BadRequestException("单条消息最多 " + ChatAttachmentMimeGuard.maxAttachmentsPerMessage() + " 个附件");
       }
@@ -104,6 +103,14 @@ public class OpenClawChatService {
     params.put("deliver", false);
     params.put("idempotencyKey", runId);
     return params;
+  }
+
+  private boolean isMediaPart(ChatPartDto part) {
+    if (part == null || part.getType() == null) {
+      return false;
+    }
+    String type = part.getType().trim().toLowerCase();
+    return "image".equals(type) || "file".equals(type);
   }
 
   public void abortChat(ChatAbortRequest request) throws Exception {

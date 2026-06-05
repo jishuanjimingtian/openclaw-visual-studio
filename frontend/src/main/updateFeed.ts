@@ -12,9 +12,14 @@ export type UpdateFeed =
   | { provider: 'generic'; url: string }
   | { provider: 'github'; owner: string; repo: string };
 
-const DEFAULT_OWNER = 'jishuanjimingtian';
-const DEFAULT_REPO = 'openclaw-visual-studio';
-const DEFAULT_MIRRORS = ['https://ghfast.top/', 'https://mirror.ghproxy.com/'];
+export const DEFAULT_OWNER = 'jishuanjimingtian';
+export const DEFAULT_REPO = 'openclaw-visual-studio';
+/** 国内加速镜像；下载时会依次尝试，停滞后自动切换 */
+const DEFAULT_MIRRORS = [
+  'https://mirror.ghproxy.com/',
+  'https://gh.ddlc.top/',
+  'https://ghfast.top/',
+];
 
 function normalizeBaseUrl(url: string): string {
   return url.endsWith('/') ? url : `${url}/`;
@@ -37,7 +42,7 @@ function isGithubReleaseFeedUrl(url: string): boolean {
   return /https:\/\/github\.com\/[^/]+\/[^/]+\/releases\//i.test(url);
 }
 
-function parseGithubReleaseFeedUrl(url: string): { owner: string; repo: string } | null {
+export function parseGithubReleaseFeedUrl(url: string): { owner: string; repo: string } | null {
   const match = url.match(/https:\/\/github\.com\/([^/]+)\/([^/]+)\/releases\//i);
   if (!match) return null;
   return { owner: match[1], repo: match[2] };
@@ -73,6 +78,48 @@ export function readAppUpdateConfig(resourcesPath: string): AppUpdateFeedConfig 
   }
 }
 
+/** 去掉镜像前缀，得到 GitHub 直链 */
+export function stripMirrorPrefix(url: string): string {
+  const match = url.match(/(https?:\/\/github\.com\/.+)/i);
+  return match ? match[1] : url;
+}
+
+export function mirrorGithubAssetUrl(githubUrl: string, mirror: string): string {
+  const direct = stripMirrorPrefix(githubUrl);
+  if (!/github\.com/i.test(direct)) {
+    return githubUrl;
+  }
+  return `${normalizeBaseUrl(mirror)}${direct}`;
+}
+
+/** 为安装包生成多线路下载地址（镜像优先，最后回退 GitHub 直链） */
+export function buildAssetDownloadCandidates(
+  assetUrl: string,
+  env: NodeJS.ProcessEnv = process.env,
+): string[] {
+  const direct = stripMirrorPrefix(assetUrl);
+  const mirrors = [
+    env.UPDATE_GITHUB_MIRROR?.trim(),
+    ...DEFAULT_MIRRORS,
+  ].filter((value): value is string => Boolean(value));
+
+  const seen = new Set<string>();
+  const urls: string[] = [];
+
+  for (const mirror of mirrors) {
+    const url = mirrorGithubAssetUrl(direct, mirror);
+    if (seen.has(url)) continue;
+    seen.add(url);
+    urls.push(url);
+  }
+
+  if (!seen.has(direct)) {
+    urls.push(direct);
+  }
+
+  return urls;
+}
+
 function buildMirrorFeeds(baseUrl: string, env: NodeJS.ProcessEnv): UpdateFeed[] {
   if (!isGithubReleaseFeedUrl(baseUrl)) {
     return [{ provider: 'generic', url: baseUrl }];
@@ -86,6 +133,7 @@ function buildMirrorFeeds(baseUrl: string, env: NodeJS.ProcessEnv): UpdateFeed[]
   const seen = new Set<string>();
   const feeds: UpdateFeed[] = [];
 
+  // 检查更新：小文件优先走镜像
   for (const mirror of mirrors) {
     const url = `${normalizeBaseUrl(mirror)}${baseUrl}`;
     if (seen.has(url)) continue;

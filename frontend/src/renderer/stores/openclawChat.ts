@@ -572,7 +572,12 @@ export const useOpenClawChatStore = defineStore('openclawChat', () => {
     sending.value = true;
 
     try {
-      await openclawChatApi.send(sessionKey.value, msg, runId, parts.length ? parts : undefined);
+      await openclawChatApi.send(
+        sessionKey.value,
+        msg,
+        runId,
+        attachmentParts.length ? attachmentParts : undefined,
+      );
       startReplyPoll(runId);
     } catch (e) {
       const err = e instanceof Error ? e.message : '发送失败';

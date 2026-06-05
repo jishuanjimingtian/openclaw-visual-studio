@@ -1,5 +1,6 @@
 import { app, BrowserWindow, ipcMain } from 'electron';
 import { autoUpdater } from 'electron-updater';
+import { spawn } from 'child_process';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
 import { join } from 'path';
 import type {
@@ -7,6 +8,7 @@ import type {
   AppUpdateEvent,
   AppUpdateState,
 } from '@shared/update';
+import { downloadUpdateWithFeeds } from './updateDownload';
 import {
   formatUpdateError,
   resolveUpdateFeeds,
@@ -27,6 +29,7 @@ let manualCheck = false;
 let pendingVersion: string | null = null;
 let suppressErrorEmit = false;
 let updateFeeds: UpdateFeed[] = [];
+let downloadedInstallerPath: string | null = null;
 
 const state: AppUpdateState = {
   status: 'idle',
@@ -270,12 +273,43 @@ function registerIpc(): void {
   );
   ipcMain.handle('update:download', async () => {
     if (!app.isPackaged) return { ...state };
+
+    const feeds = updateFeeds.length > 0
+      ? updateFeeds
+      : resolveUpdateFeeds(process.resourcesPath);
+    const targetVersion = pendingVersion ?? state.remoteVersion ?? 'latest';
+    const dest = join(app.getPath('temp'), `Clawhelm-update-${targetVersion}.exe`);
+
     setStatus('downloading');
+    state.progress = null;
+    state.error = null;
+    downloadedInstallerPath = null;
+
     try {
-      await autoUpdater.downloadUpdate();
+      const info = await downloadUpdateWithFeeds(feeds, dest, (progress) => {
+        state.progress = progress;
+        setStatus('downloading');
+        emit({
+          type: 'progress',
+          version: targetVersion,
+          progress,
+        });
+      });
+
+      downloadedInstallerPath = dest;
+      pendingVersion = info.version;
+      state.remoteVersion = info.version;
+      state.progress = null;
+      setStatus('downloaded');
+      emit({
+        type: 'downloaded',
+        version: info.version,
+        releaseNotes: state.releaseNotes,
+      });
     } catch (err) {
       const message = formatUpdateError(err);
       state.error = message;
+      state.progress = null;
       setStatus('error');
       emit({ type: 'error', message, manual: manualCheck });
     }
@@ -291,6 +325,14 @@ function registerIpc(): void {
   });
   ipcMain.handle('update:quitAndInstall', () => {
     if (!app.isPackaged) return;
+    if (downloadedInstallerPath && existsSync(downloadedInstallerPath)) {
+      spawn(downloadedInstallerPath, ['--updated', '--force-run'], {
+        detached: true,
+        stdio: 'ignore',
+      }).unref();
+      app.quit();
+      return;
+    }
     autoUpdater.quitAndInstall(false, true);
   });
 }

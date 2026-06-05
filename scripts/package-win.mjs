@@ -53,9 +53,7 @@ function ensureAppUpdateYml(unpackedDir) {
     content = `provider: generic\nurl: ${url}\n`;
   } else {
     const base = `https://github.com/${ghOwner}/${ghRepo}/releases/latest/download/`;
-    const mirror = process.env.UPDATE_GITHUB_MIRROR || 'https://ghfast.top/';
-    const prefix = mirror.endsWith('/') ? mirror : `${mirror}/`;
-    content = `provider: generic\nurl: ${prefix}${base}\n`;
+    content = `provider: generic\nurl: ${base}\n`;
   }
 
   writeFileSync(ymlPath, content, 'utf8');

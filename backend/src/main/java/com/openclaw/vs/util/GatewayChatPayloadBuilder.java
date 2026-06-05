@@ -1,7 +1,6 @@
 package com.openclaw.vs.util;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.openclaw.vs.dto.ChatPartDto;
 import com.openclaw.vs.service.ChatAttachmentService;
@@ -12,9 +11,9 @@ import java.util.List;
 /**
  * Builds OpenClaw Gateway {@code chat.send} params for multimodal messages.
  *
- * <p>Protocol (OpenClaw Gateway v4+): prefer structured {@code content} array with
- * {@code {type:text,text}} and {@code {type:image,path}} / {@code {type:file,path,name}}.
- * Also sets {@code message} as a text fallback for gateways that only read the string field.
+ * <p>Gateway {@code chat.send} accepts {@code message} (string). Attachment paths are
+ * embedded in the message body so agents can resolve local files; do not send root-level
+ * {@code content} (rejected by current Gateway schema).
  */
 public final class GatewayChatPayloadBuilder {
 
@@ -32,8 +31,7 @@ public final class GatewayChatPayloadBuilder {
         params.put("deliver", false);
         params.put("idempotencyKey", runId);
 
-        ArrayNode content = mapper.createArrayNode();
-        StringBuilder textFallback = new StringBuilder();
+        StringBuilder message = new StringBuilder();
 
         for (ChatPartDto part : parts) {
             if (part == null || part.getType() == null) {
@@ -44,14 +42,10 @@ public final class GatewayChatPayloadBuilder {
                 case "text" -> {
                     String text = part.getText() != null ? part.getText() : "";
                     if (!text.isBlank()) {
-                        ObjectNode textNode = mapper.createObjectNode();
-                        textNode.put("type", "text");
-                        textNode.put("text", text);
-                        content.add(textNode);
-                        if (!textFallback.isEmpty()) {
-                            textFallback.append('\n');
+                        if (!message.isEmpty()) {
+                            message.append('\n');
                         }
-                        textFallback.append(text);
+                        message.append(text);
                     }
                 }
                 case "image", "file" -> {
@@ -59,20 +53,10 @@ public final class GatewayChatPayloadBuilder {
                         continue;
                     }
                     Path filePath = attachmentService.resolveAttachmentPath(part.getAttachmentId().trim());
-                    ObjectNode mediaNode = mapper.createObjectNode();
-                    mediaNode.put("type", type);
-                    mediaNode.put("path", filePath.toAbsolutePath().toString().replace('\\', '/'));
-                    if (part.getName() != null && !part.getName().isBlank()) {
-                        mediaNode.put("name", part.getName().trim());
+                    if (!message.isEmpty()) {
+                        message.append('\n');
                     }
-                    if (part.getMime() != null && !part.getMime().isBlank()) {
-                        mediaNode.put("mime", part.getMime().trim());
-                    }
-                    content.add(mediaNode);
-                    if (!textFallback.isEmpty()) {
-                        textFallback.append('\n');
-                    }
-                    textFallback.append("[附件] ")
+                    message.append("[附件] ")
                         .append(part.getName() != null ? part.getName() : part.getAttachmentId())
                         .append(" (")
                         .append(filePath.toAbsolutePath().toString().replace('\\', '/'))
@@ -84,10 +68,7 @@ public final class GatewayChatPayloadBuilder {
             }
         }
 
-        if (!content.isEmpty()) {
-            params.set("content", content);
-        }
-        String messageText = textFallback.toString().trim();
+        String messageText = message.toString().trim();
         if (!messageText.isBlank()) {
             params.put("message", messageText);
         }
