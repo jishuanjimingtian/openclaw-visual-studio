@@ -17,8 +17,12 @@ spring:
   websocket:
     max-text-message-size: 128KB
 
+  lifecycle:
+    timeout-per-shutdown-phase: 15s
+
 server:
   port: 8089
+  shutdown: graceful
   servlet:
     context-path: /api/v1
 
@@ -36,6 +40,9 @@ app:
     auto-connect: true
     auto-adopt-on-startup: true
     prefer-daemon: true
+    doctor-fix-on-start: false
+    stop-on-shutdown: true
+    stop-managed-only-on-shutdown: true
     ws-url:
     reconnect-interval-ms: 3000
     max-reconnect-attempts: 15

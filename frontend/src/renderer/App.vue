@@ -9,6 +9,7 @@
       <n-notification-provider>
         <n-message-provider>
           <ChatNotifyHost />
+          <GatewayHealthNotifyHost />
           <AppUpdatePrompt />
           <div class="app-shell" :data-theme="themeStore.resolvedTheme">
             <div class="app-layout">
@@ -45,14 +46,18 @@ import { zhCN, dateZhCN } from 'naive-ui';
 import Sidebar from '@/components/common/Sidebar.vue';
 import AppHeader from '@/components/common/AppHeader.vue';
 import ChatNotifyHost from '@/components/chat/ChatNotifyHost.vue';
+import GatewayHealthNotifyHost from '@/components/common/GatewayHealthNotifyHost.vue';
 import AppUpdatePrompt from '@/components/AppUpdatePrompt.vue';
 import { useThemeStore } from '@/stores/theme';
 import { useGatewayStore } from '@/stores/gateway';
 import { useOpenClawChatStore } from '@/stores/openclawChat';
+import { useAppShutdown } from '@/composables/useAppShutdown';
 
 const themeStore = useThemeStore();
 const gatewayStore = useGatewayStore();
 const openClawChatStore = useOpenClawChatStore();
+
+useAppShutdown();
 
 const naiveTheme = computed(() =>
   themeStore.resolvedTheme === 'dark' ? darkTheme : null,
@@ -65,8 +70,6 @@ onMounted(() => {
 
 onUnmounted(() => {
   themeStore.disposeThemeListener();
-  gatewayStore.stopPolling();
-  openClawChatStore.destroyGlobal();
 });
 </script>
 

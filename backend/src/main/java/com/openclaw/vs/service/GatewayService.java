@@ -1,9 +1,11 @@
 package com.openclaw.vs.service;
 
 import com.openclaw.vs.dto.GatewayInfo;
+import com.openclaw.vs.gateway.GatewayHealthSupport;
 import com.openclaw.vs.gateway.GatewayWebSocketClient;
 import com.openclaw.vs.gateway.OpenClawGatewayConfigReader;
 import com.openclaw.vs.util.WindowsProcessUtils;
+import jakarta.annotation.PreDestroy;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -49,9 +51,12 @@ public class GatewayService {
     private static final long STARTUP_PORT_WAIT_MS = 120_000;
     private static final long STARTUP_RPC_WAIT_MS = 60_000;
     private static final long STOP_OPENCLAW_TIMEOUT_SEC = 12;
-    private static final long STOP_PROCESS_WAIT_SEC = 2;
-    private static final long STOP_PORT_CLOSE_WAIT_SEC = 5;
+    private static final long STOP_PROCESS_WAIT_SEC = 5;
+    private static final long STOP_PORT_CLOSE_WAIT_SEC = 8;
+    private static final long START_PRE_CLEAN_RPC_WAIT_SEC = 3;
     private static final long STOP_PORT_POLL_MS = 100;
+    private static final long DAEMON_STATUS_TIMEOUT_SEC = 5;
+    private static final long DOCTOR_FIX_TIMEOUT_SEC = 20;
 
     public static final String PHASE_IDLE = "idle";
     public static final String PHASE_LAUNCHING = "launching";
@@ -68,6 +73,15 @@ public class GatewayService {
 
     @Value("${app.gateway.prefer-daemon:true}")
     private boolean preferDaemon;
+
+    @Value("${app.gateway.doctor-fix-on-start:false}")
+    private boolean doctorFixOnStart;
+
+    @Value("${app.gateway.stop-on-shutdown:true}")
+    private boolean stopOnShutdown;
+
+    @Value("${app.gateway.stop-managed-only-on-shutdown:true}")
+    private boolean stopManagedOnlyOnShutdown;
 
     private volatile Long gatewayPid;
     private volatile Process gatewayProcess;
@@ -90,6 +104,8 @@ public class GatewayService {
     private volatile int cachedDiscoveredPort = -1;
     private volatile long cachedDiscoveredPortAt;
     private volatile long lastBackgroundReconnectMs;
+    /** 端口已监听但 RPC 未连接的起始时间，用于僵尸进程判定 */
+    private volatile long portOpenWithoutRpcSinceMs;
 
     private final Object startupLock = new Object();
     private volatile CompletableFuture<Void> startupTask;
@@ -166,6 +182,7 @@ public class GatewayService {
      */
     public GatewayInfo startGateway(Integer port, Boolean useDaemon) {
         cleanupStaleSessionLocks();
+        runDoctorFixIfEnabled();
         gatewayWebSocketClient.resumeConnection();
         synchronized (startupLock) {
             if (startupTask != null && !startupTask.isDone()) {
@@ -180,7 +197,11 @@ public class GatewayService {
         int targetPort = resolveTargetPort(port);
         activePort = targetPort;
 
-        if (isGatewayPortReady(targetPort)) {
+        if (!preparePortBeforeStart(targetPort, daemon)) {
+            return buildStartupProgressResponse();
+        }
+
+        if (isGatewayPortReady(targetPort) && gatewayWebSocketClient.isConnected()) {
             clearStartupState();
             GatewayInfo.GatewayInfoBuilder builder = GatewayInfo.builder();
             managementMode = isDaemonServiceInstalledCached() ? MANAGED_DAEMON : MANAGED_EXTERNAL;
@@ -510,6 +531,24 @@ public class GatewayService {
      * 旧进程异常退出后这些 .lock 文件不会被清理，新实例启动时因锁冲突触发
      * SessionWriteLockTimeoutError 导致超时崩溃。
      */
+    private void runDoctorFixIfEnabled() {
+        if (!doctorFixOnStart) {
+            return;
+        }
+        if (resolveOpenclawPath() == null) {
+            return;
+        }
+        try {
+            log.info("启动 Gateway 前执行 openclaw doctor --fix …");
+            OpenclawCommandResult result = runOpenclaw(DOCTOR_FIX_TIMEOUT_SEC, "doctor", "--fix");
+            if (result.exitCode() != 0) {
+                log.warn("openclaw doctor --fix 退出码 {}: {}", result.exitCode(), result.outputTail(300));
+            }
+        } catch (Exception e) {
+            log.warn("openclaw doctor --fix 失败: {}", e.getMessage());
+        }
+    }
+
     private void cleanupStaleSessionLocks() {
         String homeDir = System.getProperty("user.home");
         File sessionsDir = new File(homeDir, ".openclaw\\agents\\main\\sessions");
@@ -642,6 +681,32 @@ public class GatewayService {
      * 停止 OpenClaw Gateway（后台服务、子进程或外部实例）
      */
     public synchronized GatewayInfo stopGateway() {
+        return performStopGateway(false);
+    }
+
+    @PreDestroy
+    public void shutdownOnJvmExit() {
+        if (!stopOnShutdown) {
+            return;
+        }
+        if (stopManagedOnlyOnShutdown && !isManagedByVs()) {
+            gatewayWebSocketClient.pauseConnection();
+            log.info("JVM 退出：保留外部/后台 Gateway 实例");
+            return;
+        }
+        log.info("JVM 退出：正在停止 Gateway …");
+        performStopGateway(true);
+    }
+
+    private boolean isManagedByVs() {
+        return MANAGED_VS_PROCESS.equals(managementMode)
+            || (gatewayProcess != null && gatewayProcess.isAlive());
+    }
+
+    /**
+     * @param fromShutdown JVM 退出路径为 true，跳过部分缓存刷新
+     */
+    private GatewayInfo performStopGateway(boolean fromShutdown) {
         cancelStartupTaskQuietly();
         clearStartupState();
         invalidateStatusCache();
@@ -658,70 +723,30 @@ public class GatewayService {
 
         if (!portWasReady && gatewayProcess == null && gatewayPid == null) {
             builder.status("stopped").wsConnected(false);
-            applyManagedBy(builder);
+            if (!fromShutdown) {
+                applyManagedBy(builder);
+            }
+            resetHealthTracking();
             log.info("没有正在运行的 Gateway");
             GatewayInfo stopped = builder.build();
             publishStatusSnapshot(stopped, true);
             return stopped;
         }
 
+        Long stoppedPid = gatewayPid;
         try {
-            if (gatewayProcess != null && gatewayProcess.isAlive()) {
-                managementMode = MANAGED_VS_PROCESS;
-                gatewayProcess.destroy();
-                boolean terminated = gatewayProcess.waitFor(STOP_PROCESS_WAIT_SEC, TimeUnit.SECONDS);
-                if (!terminated) {
-                    gatewayProcess.destroyForcibly();
-                    log.warn("Gateway 子进程 (PID: {}) 被强制终止", gatewayPid);
-                }
-                waitForPortClosed(port, STOP_PORT_CLOSE_WAIT_SEC, TimeUnit.SECONDS);
-            } else if (MANAGED_DAEMON.equals(managementMode) || isDaemonServiceInstalledCached()) {
-                OpenclawCommandResult stop = runOpenclaw(STOP_OPENCLAW_TIMEOUT_SEC, "gateway", "stop");
-                if (stop.exitCode() != 0) {
-                    log.warn("openclaw gateway stop 输出: {}", stop.output());
-                }
-                waitForPortClosed(port, STOP_PORT_CLOSE_WAIT_SEC, TimeUnit.SECONDS);
-            } else if (gatewayPid != null) {
-                ProcessHandle.of(gatewayPid).ifPresent(ph -> {
-                    ph.destroy();
-                    try {
-                        ph.onExit().get(STOP_PROCESS_WAIT_SEC, TimeUnit.SECONDS);
-                    } catch (InterruptedException e) {
-                        Thread.currentThread().interrupt();
-                        ph.destroyForcibly();
-                    } catch (Exception e) {
-                        ph.destroyForcibly();
-                    }
-                });
-                waitForPortClosed(port, STOP_PORT_CLOSE_WAIT_SEC, TimeUnit.SECONDS);
-            } else if (portWasReady) {
-                findProcessByPort(port).ifPresent(ph -> {
-                    gatewayPid = ph.pid();
-                    ph.destroy();
-                    try {
-                        ph.onExit().get(STOP_PROCESS_WAIT_SEC, TimeUnit.SECONDS);
-                    } catch (InterruptedException e) {
-                        Thread.currentThread().interrupt();
-                        ph.destroyForcibly();
-                    } catch (Exception e) {
-                        ph.destroyForcibly();
-                    }
-                });
-                if (isPortOpenQuick(port)) {
-                    OpenclawCommandResult stop = runOpenclaw(STOP_OPENCLAW_TIMEOUT_SEC, "gateway", "stop");
-                    if (stop.exitCode() != 0) {
-                        log.warn("openclaw gateway stop 输出: {}", stop.output());
-                    }
-                    waitForPortClosed(port, STOP_PORT_CLOSE_WAIT_SEC, TimeUnit.SECONDS);
-                }
-            }
+            stopGatewayProcesses(port, portWasReady, fromShutdown);
+            forceReleasePortIfNeeded(port, stoppedPid);
 
             builder.status("stopped").wsConnected(false);
             if (isPortOpenQuick(port)) {
-                builder.message("Gateway 已停止，但端口 " + port + " 仍被占用（可能为残留进程或其他服务）");
-            }
-            if (gatewayPid != null) {
-                builder.pid(gatewayPid);
+                Long lingeringPid = findProcessByPort(port).map(ProcessHandle::pid).orElse(stoppedPid);
+                builder.pid(lingeringPid);
+                builder.message("Gateway 已停止，但端口 " + port + " 仍被占用"
+                    + (lingeringPid != null ? "（PID " + lingeringPid + "）" : "")
+                    + "。请以管理员执行 taskkill /PID <pid> /F /T");
+            } else if (stoppedPid != null) {
+                builder.pid(stoppedPid);
             }
             log.info("Gateway 已停止 (port={}, managedBy={})", port, managementMode);
 
@@ -734,11 +759,129 @@ public class GatewayService {
             gatewayProcess = null;
             startTime = null;
             managementMode = null;
+            resetHealthTracking();
         }
 
-        applyManagedBy(builder);
-        publishStatusSnapshot(builder.build(), true);
-        return builder.build();
+        if (!fromShutdown) {
+            applyManagedBy(builder);
+        }
+        GatewayInfo result = builder.build();
+        publishStatusSnapshot(result, true);
+        return result;
+    }
+
+    private void stopGatewayProcesses(int port, boolean portWasReady, boolean fromShutdown) throws IOException {
+        if (gatewayProcess != null && gatewayProcess.isAlive()) {
+            managementMode = MANAGED_VS_PROCESS;
+            terminateProcess(gatewayProcess, gatewayPid);
+            waitForPortClosed(port, STOP_PORT_CLOSE_WAIT_SEC, TimeUnit.SECONDS);
+            return;
+        }
+
+        boolean daemonManaged = MANAGED_DAEMON.equals(managementMode)
+            || (!fromShutdown && isDaemonServiceInstalledCached());
+
+        if (daemonManaged || portWasReady) {
+            WindowsProcessUtils.endWindowsScheduledTask(WindowsProcessUtils.OPENCLAW_GATEWAY_TASK_NAME);
+            OpenclawCommandResult stop = runOpenclaw(STOP_OPENCLAW_TIMEOUT_SEC, "gateway", "stop");
+            if (stop.exitCode() != 0) {
+                log.warn("openclaw gateway stop 输出: {}", stop.outputTail(300));
+            }
+            waitForPortClosed(port, STOP_PORT_CLOSE_WAIT_SEC, TimeUnit.SECONDS);
+        }
+
+        if (gatewayPid != null) {
+            ProcessHandle.of(gatewayPid).ifPresent(this::terminateProcessHandle);
+            waitForPortClosed(port, STOP_PORT_CLOSE_WAIT_SEC, TimeUnit.SECONDS);
+        } else if (portWasReady) {
+            findProcessByPort(port).ifPresent(ph -> {
+                gatewayPid = ph.pid();
+                terminateProcessHandle(ph);
+            });
+            waitForPortClosed(port, STOP_PORT_CLOSE_WAIT_SEC, TimeUnit.SECONDS);
+        }
+    }
+
+    private void terminateProcess(Process process, Long pid) {
+        if (process == null || !process.isAlive()) {
+            return;
+        }
+        long effectivePid = pid != null ? pid : process.pid();
+        process.destroy();
+        try {
+            if (!process.waitFor(STOP_PROCESS_WAIT_SEC, TimeUnit.SECONDS)) {
+                process.destroyForcibly();
+                WindowsProcessUtils.forceKillProcessTree(effectivePid);
+                log.warn("Gateway 子进程 (PID: {}) 被强制终止", effectivePid);
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            process.destroyForcibly();
+            WindowsProcessUtils.forceKillProcessTree(effectivePid);
+        }
+    }
+
+    private void terminateProcessHandle(ProcessHandle handle) {
+        if (handle == null || !handle.isAlive()) {
+            return;
+        }
+        long pid = handle.pid();
+        handle.destroy();
+        try {
+            handle.onExit().get(STOP_PROCESS_WAIT_SEC, TimeUnit.SECONDS);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            handle.destroyForcibly();
+            WindowsProcessUtils.forceKillProcessTree(pid);
+        } catch (Exception e) {
+            handle.destroyForcibly();
+            if (!WindowsProcessUtils.forceKillProcessTree(pid)) {
+                log.warn("无法终止 Gateway 进程 PID {}", pid);
+            }
+        }
+    }
+
+    private void forceReleasePortIfNeeded(int port, Long knownPid) {
+        if (!isPortOpenQuick(port)) {
+            return;
+        }
+        Long pid = findProcessByPort(port).map(ProcessHandle::pid).orElse(knownPid);
+        if (pid != null && WindowsProcessUtils.forceKillProcessTree(pid)) {
+            waitForPortClosed(port, STOP_PORT_CLOSE_WAIT_SEC, TimeUnit.SECONDS);
+        }
+    }
+
+    private void resetHealthTracking() {
+        portOpenWithoutRpcSinceMs = 0;
+    }
+
+    /**
+     * 启动前清理无响应的端口占用；若已有健康实例则保留。
+     *
+     * @return false 表示启动已被取消（例如正在停止）
+     */
+    private boolean preparePortBeforeStart(int targetPort, boolean daemon) {
+        if (!isPortOpenQuick(targetPort)) {
+            return true;
+        }
+        if (gatewayWebSocketClient.isConnected()) {
+            return true;
+        }
+
+        gatewayWebSocketClient.setRuntimeGatewayPort(targetPort);
+        gatewayWebSocketClient.reconnectIfNeeded();
+        if (waitForGatewayClientReady(START_PRE_CLEAN_RPC_WAIT_SEC, TimeUnit.SECONDS)) {
+            return true;
+        }
+
+        if (daemon) {
+            return true;
+        }
+
+        log.warn("端口 {} 上的 Gateway 无响应，启动前尝试清理残留实例", targetPort);
+        performStopGateway(false);
+        cleanupStaleSessionLocks();
+        return true;
     }
 
     /**
@@ -751,17 +894,45 @@ public class GatewayService {
     }
 
     public GatewayInfo getGatewayStatus(boolean fullProbe) {
-        if (isStartupInProgress()) {
-            GatewayInfo progress = buildStartupProgressResponse();
-            publishStatusSnapshot(progress, fullProbe);
-            return withFreshUptime(progress);
+        try {
+            if (isStartupInProgress()) {
+                GatewayInfo progress = buildStartupProgressResponse();
+                publishStatusSnapshot(progress, fullProbe);
+                return finalizeGatewayStatus(progress, fullProbe, false);
+            }
+            if (!fullProbe && isLightCacheValid()) {
+                return finalizeGatewayStatus(withFreshUptime(cachedLightStatus), fullProbe, false);
+            }
+            GatewayInfo info = fullProbe ? probeGatewayStatusFull() : probeGatewayStatusLight();
+            publishStatusSnapshot(info, fullProbe);
+            return finalizeGatewayStatus(info, fullProbe, fullProbe);
+        } catch (Exception e) {
+            log.error("Gateway 状态探测失败: {}", e.getMessage(), e);
+            int port = resolveKnownPort();
+            GatewayInfo failed = GatewayInfo.builder()
+                .port(port)
+                .status("error")
+                .wsConnected(false)
+                .healthIssue(GatewayHealthSupport.HEALTH_PROBE_FAILED)
+                .message("Gateway 状态探测失败: " + e.getMessage())
+                .recoveryHint(GatewayHealthSupport.ZOMBIE_RECOVERY_HINT)
+                .build();
+            publishStatusSnapshot(failed, fullProbe);
+            return failed;
         }
-        if (!fullProbe && isLightCacheValid()) {
-            return withFreshUptime(cachedLightStatus);
+    }
+
+    private GatewayInfo finalizeGatewayStatus(GatewayInfo info, boolean fullProbe, boolean attemptedReconnect) {
+        if (info == null) {
+            return null;
         }
-        GatewayInfo info = fullProbe ? probeGatewayStatusFull() : probeGatewayStatusLight();
-        publishStatusSnapshot(info, fullProbe);
-        return info;
+        boolean portReady = info.getEndpoint() != null && !info.getEndpoint().isBlank()
+            || ("starting".equals(info.getStatus()) || "running".equals(info.getStatus()) || "error".equals(info.getStatus()))
+                && info.getPort() != null;
+        boolean clientReady = Boolean.TRUE.equals(info.getWsConnected());
+        portOpenWithoutRpcSinceMs = GatewayHealthSupport.updatePortOpenTracking(
+            portReady, clientReady, portOpenWithoutRpcSinceMs);
+        return GatewayHealthSupport.applyHealthAssessment(info, portOpenWithoutRpcSinceMs, attemptedReconnect);
     }
 
     private void invalidateStatusCache() {
@@ -806,14 +977,15 @@ public class GatewayService {
 
         if (clientReady) {
             ensureManagementModeCached();
-            return buildActiveGatewayInfo(port, true, true, null);
+            return buildActiveGatewayInfo(port, true, true, null, true);
         }
 
         if (gatewayProcess != null && gatewayProcess.isAlive()) {
             ensureManagementModeCached();
             boolean portReady = isPortOpenQuick(port);
             return buildActiveGatewayInfo(port, false, portReady,
-                portReady ? "Gateway 端口已开放，后端 RPC 客户端未连接（检查 device.json / token / 端口）" : "Gateway 进程存在但端口未监听");
+                portReady ? "Gateway 端口已开放，后端 RPC 客户端未连接（检查 device.json / token / 端口）" : "Gateway 进程存在但端口未监听",
+                true);
         }
 
         if (isKnownPidAlive()) {
@@ -826,7 +998,8 @@ public class GatewayService {
                 maybeScheduleBackgroundReconnect(port);
             }
             return buildActiveGatewayInfo(port, false, portReady,
-                portReady ? "Gateway 端口已开放，后端 RPC 客户端未连接（检查 device.json / token / 端口）" : "Gateway 进程存在但端口未监听");
+                portReady ? "Gateway 端口已开放，后端 RPC 客户端未连接（检查 device.json / token / 端口）" : "Gateway 进程存在但端口未监听",
+                true);
         }
 
         boolean portReady = isPortOpenQuick(port);
@@ -834,15 +1007,16 @@ public class GatewayService {
             activePort = port;
             maybeScheduleBackgroundReconnect(port);
             return buildActiveGatewayInfo(port, false, true,
-                "Gateway 端口已开放，后端 RPC 客户端未连接（检查 device.json / token / 端口）");
+                "Gateway 端口已开放，后端 RPC 客户端未连接（检查 device.json / token / 端口）",
+                true);
         }
 
         return GatewayInfo.builder()
             .port(port)
             .status("stopped")
             .wsConnected(false)
-            .serviceInstalled(isDaemonServiceInstalledCached())
-            .version(getGatewayVersionCached())
+            .serviceInstalled(cachedDaemonInstalled)
+            .version(cachedVersion)
             .managedBy(managementMode)
             .build();
     }
@@ -896,14 +1070,19 @@ public class GatewayService {
         return builder.build();
     }
 
-    private GatewayInfo buildActiveGatewayInfo(int port, boolean clientReady, boolean portReady, String message) {
+    private GatewayInfo buildActiveGatewayInfo(
+        int port,
+        boolean clientReady,
+        boolean portReady,
+        String message,
+        boolean lightProbe
+    ) {
         GatewayInfo.GatewayInfoBuilder builder = GatewayInfo.builder()
             .port(port)
             .wsConnected(clientReady)
-            .serviceInstalled(isDaemonServiceInstalledCached())
-            .version(getGatewayVersionCached())
             .pid(gatewayPid)
             .workDir(workDir);
+        applyMetadata(builder, lightProbe);
         if (portReady || clientReady) {
             applyGatewayEndpoints(builder, port);
         }
@@ -923,8 +1102,22 @@ public class GatewayService {
         if (message != null) {
             builder.message(message);
         }
-        applyManagedBy(builder);
+        applyManagedBy(builder, lightProbe);
         return builder.build();
+    }
+
+    private void applyMetadata(GatewayInfo.GatewayInfoBuilder builder, boolean lightProbe) {
+        if (lightProbe) {
+            if (cachedDaemonInstalled != null) {
+                builder.serviceInstalled(cachedDaemonInstalled);
+            }
+            if (cachedVersion != null) {
+                builder.version(cachedVersion);
+            }
+            return;
+        }
+        builder.serviceInstalled(isDaemonServiceInstalledCached())
+            .version(getGatewayVersionCached());
     }
 
     private int resolveKnownPort() {
@@ -1349,7 +1542,17 @@ public class GatewayService {
     }
 
     private void applyManagedBy(GatewayInfo.GatewayInfoBuilder builder) {
+        applyManagedBy(builder, false);
+    }
+
+    private void applyManagedBy(GatewayInfo.GatewayInfoBuilder builder, boolean lightProbe) {
         builder.managedBy(managementMode);
+        if (lightProbe) {
+            if (cachedDaemonInstalled != null) {
+                builder.serviceInstalled(cachedDaemonInstalled);
+            }
+            return;
+        }
         builder.serviceInstalled(isDaemonServiceInstalledCached());
     }
 
@@ -1381,7 +1584,7 @@ public class GatewayService {
 
     private boolean isDaemonServiceInstalled() {
         try {
-            OpenclawCommandResult status = runOpenclaw("gateway", "status");
+            OpenclawCommandResult status = runOpenclaw(DAEMON_STATUS_TIMEOUT_SEC, "gateway", "status");
             String output = status.output().toLowerCase();
             return output.contains("scheduled task")
                 || output.contains("registered")

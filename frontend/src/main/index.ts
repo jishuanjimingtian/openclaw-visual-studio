@@ -4,11 +4,12 @@ import { app, BrowserWindow, dialog, ipcMain, Menu, Notification, nativeImage, s
 import { join } from 'path';
 import { APP_WINDOW_TITLE, APP_PRODUCT_NAME } from '@shared/brand';
 import { DEFAULT_BACKEND_PORT, getApiBaseUrl } from '@shared/backend';
-import { startBackend, stopBackend } from './backendManager';
+import { startBackend, prepareAppQuit } from './backendManager';
 import { collectLocalSystemMetrics, warmCpuSampler } from './systemMetrics';
 import { disposeUpdateManager, initUpdateManager, registerUpdateHandlers } from './updateManager';
 
 let mainWindow: BrowserWindow | null = null;
+let quitting = false;
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -67,9 +68,29 @@ async function bootstrap() {
 
 app.whenReady().then(bootstrap);
 
-app.on('before-quit', () => {
+app.on('before-quit', (event) => {
+  if (quitting) {
+    return;
+  }
+  event.preventDefault();
+  quitting = true;
   disposeUpdateManager();
-  stopBackend();
+
+  void (async () => {
+    try {
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('app:prepare-quit');
+        await new Promise((resolve) => setTimeout(resolve, 300));
+      }
+      await prepareAppQuit();
+    } finally {
+      app.exit(0);
+    }
+  })();
+});
+
+ipcMain.handle('app:prepareQuit', async () => {
+  await prepareAppQuit();
 });
 
 app.on('window-all-closed', () => {

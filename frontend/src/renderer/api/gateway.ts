@@ -19,9 +19,9 @@ export const gatewayApi = {
     return apiClient.post<GatewayInfo>('/api/v1/gateway/connect');
   },
 
-  /** 停止 Gateway */
-  stopGateway() {
-    return apiClient.post<GatewayInfo>('/api/v1/gateway/stop');
+  /** 停止 Gateway；可传 AbortSignal 限制等待时间（退出流程用） */
+  stopGateway(signal?: AbortSignal) {
+    return apiClient.post<GatewayInfo>('/api/v1/gateway/stop', undefined, { signal });
   },
 
   /** 获取 Gateway 状态；full=true 完整探测，默认轻量轮询 */

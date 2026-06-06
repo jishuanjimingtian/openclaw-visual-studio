@@ -2,15 +2,17 @@ import { spawn, type ChildProcess } from 'child_process';
 import { existsSync, mkdirSync, readdirSync, readFileSync } from 'fs';
 import { join } from 'path';
 import { app } from 'electron';
-import { DEFAULT_BACKEND_PORT, getBackendHealthUrl } from '@shared/backend';
+import { DEFAULT_BACKEND_PORT, getApiBaseUrl, getBackendHealthUrl } from '@shared/backend';
 
 /** Spring profile for packaged desktop production (see application-desktop.yml). */
 const DESKTOP_SPRING_PROFILE = 'desktop';
 
 const JAR_NAME = 'openclaw-vs-backend.jar';
 const STARTUP_TIMEOUT_MS = 120_000;
+const SHUTDOWN_GRACE_MS = 5_000;
 
 let backendProcess: ChildProcess | null = null;
+let stoppingBackend = false;
 
 function toH2Path(filePath: string): string {
   return filePath.replace(/\\/g, '/');
@@ -228,22 +230,85 @@ export async function startBackend(port = DEFAULT_BACKEND_PORT): Promise<void> {
   await waitForHealthy(port, logFilePath, () => backendExitCode);
 }
 
-export function stopBackend(): void {
-  if (!backendProcess || backendProcess.killed) {
-    backendProcess = null;
-    return;
-  }
-
-  const pid = backendProcess.pid;
-  backendProcess.kill();
-
-  if (process.platform === 'win32' && pid) {
+function forceKillBackendTree(pid: number): void {
+  if (process.platform === 'win32') {
     try {
       spawn('taskkill', ['/pid', String(pid), '/f', '/t'], { stdio: 'ignore', windowsHide: true });
     } catch {
       // Best effort cleanup for bundled Java backend.
     }
+    return;
+  }
+  try {
+    process.kill(pid, 'SIGKILL');
+  } catch {
+    // already exited
+  }
+}
+
+function waitForBackendExit(proc: ChildProcess, timeoutMs: number): Promise<void> {
+  return new Promise((resolve) => {
+    if (proc.killed || proc.exitCode !== null) {
+      resolve();
+      return;
+    }
+    const timer = setTimeout(() => {
+      proc.removeListener('exit', onExit);
+      resolve();
+    }, timeoutMs);
+    const onExit = () => {
+      clearTimeout(timer);
+      resolve();
+    };
+    proc.once('exit', onExit);
+  });
+}
+
+export async function prepareAppQuit(port = DEFAULT_BACKEND_PORT): Promise<void> {
+  if (!app.isPackaged) {
+    return;
+  }
+
+  const stopUrl = `${getApiBaseUrl(port)}/gateway/stop`;
+  try {
+    await fetch(stopUrl, {
+      method: 'POST',
+      signal: AbortSignal.timeout(8_000),
+    });
+  } catch {
+    // Gateway may already be stopped.
+  }
+
+  await stopBackendAsync();
+}
+
+export async function stopBackendAsync(): Promise<void> {
+  if (stoppingBackend) {
+    return;
+  }
+  stoppingBackend = true;
+
+  const proc = backendProcess;
+  if (!proc || proc.killed) {
+    backendProcess = null;
+    stoppingBackend = false;
+    return;
+  }
+
+  const pid = proc.pid;
+  proc.kill();
+
+  await waitForBackendExit(proc, SHUTDOWN_GRACE_MS);
+
+  if (pid && proc.exitCode === null) {
+    forceKillBackendTree(pid);
+    await waitForBackendExit(proc, 2_000);
   }
 
   backendProcess = null;
+  stoppingBackend = false;
+}
+
+export function stopBackend(): void {
+  void stopBackendAsync();
 }

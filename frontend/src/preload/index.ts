@@ -13,6 +13,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getPath: (name: string) => ipcRenderer.invoke('app:getPath', name),
   getBackendUrl: () => ipcRenderer.invoke('app:getBackendUrl'),
   isPackaged: () => ipcRenderer.invoke('app:isPackaged'),
+  prepareQuit: () => ipcRenderer.invoke('app:prepareQuit') as Promise<void>,
+  onPrepareQuit: (listener: () => void) => {
+    const handler = () => listener();
+    ipcRenderer.on('app:prepare-quit', handler);
+    return () => ipcRenderer.removeListener('app:prepare-quit', handler);
+  },
   getSystemMetrics: () => ipcRenderer.invoke('system:getMetrics') as Promise<LocalSystemMetrics>,
   showDesktopNotification: (payload: { title: string; body: string }) =>
     ipcRenderer.invoke('notification:show', payload) as Promise<boolean>,

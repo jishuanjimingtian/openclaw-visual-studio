@@ -7,6 +7,7 @@ export type GatewayStatus = 'running' | 'stopped' | 'starting' | 'stopping' | 'e
 
 const STARTUP_POLL_MS = 2000;
 const STARTUP_WAIT_MS = 120_000;
+const SHUTDOWN_STOP_TIMEOUT_MS = 8_000;
 
 const STARTUP_PHASE_LABELS: Record<GatewayStartupPhase, string> = {
   idle: '',
@@ -93,6 +94,11 @@ export const useGatewayStore = defineStore('gateway', () => {
     }
   });
 
+  const healthIssue = computed(() => gatewayInfo.value?.healthIssue || '');
+  const recoveryHint = computed(() => gatewayInfo.value?.recoveryHint || '');
+  const isZombie = computed(() => healthIssue.value === 'zombie' || healthIssue.value === 'probe_failed');
+  const needsRecovery = computed(() => Boolean(recoveryHint.value) || isZombie.value);
+
   /** 进程存活（running / starting / RPC 已连接） */
   const processOnline = computed(() => isRunning.value || isStarting.value || wsConnected.value);
 
@@ -105,6 +111,7 @@ export const useGatewayStore = defineStore('gateway', () => {
   const isHealthy = computed(() => (isRunning.value || wsConnected.value) && wsConnected.value);
 
   const statusLabel = computed(() => {
+    if (isZombie.value) return 'Gateway 僵死';
     if (isHealthy.value) return '运行正常';
     if (wsConnected.value) return '运行中';
     if (isRunning.value && !wsConnected.value) return '等待 RPC 连接';
@@ -130,6 +137,9 @@ export const useGatewayStore = defineStore('gateway', () => {
     const prevPort = gatewayInfo.value?.port;
     gatewayInfo.value = data;
     let normalized = normalizeStatus(data.status);
+    if (data.healthIssue === 'zombie' || data.healthIssue === 'probe_failed') {
+      normalized = 'error';
+    }
     // 后端 HTTP 探测可能失败，但 RPC 已连接时仍应视为运行中
     if (data.wsConnected && normalized === 'stopped') {
       normalized = 'running';
@@ -210,10 +220,15 @@ export const useGatewayStore = defineStore('gateway', () => {
     }
   }
 
-  async function stopGateway() {
+  async function stopGateway(options?: { silent?: boolean; signal?: AbortSignal }) {
+    if (shuttingDown && options?.silent) {
+      return gatewayInfo.value;
+    }
     stopPolling();
     userHalted.value = true;
-    loading.value = true;
+    if (!options?.silent) {
+      loading.value = true;
+    }
     status.value = 'stopping';
     if (gatewayInfo.value) {
       gatewayInfo.value = {
@@ -224,18 +239,60 @@ export const useGatewayStore = defineStore('gateway', () => {
       };
     }
     try {
-      const res = await gatewayApi.stopGateway();
+      const res = await gatewayApi.stopGateway(options?.signal);
       if (res.code !== 0) {
-        status.value = 'error';
-        throw new Error(res.message || 'Gateway 停止失败');
+        if (!options?.silent) {
+          status.value = 'error';
+          throw new Error(res.message || 'Gateway 停止失败');
+        }
+        return gatewayInfo.value;
       }
       applyInfo(res.data);
       return res.data;
     } catch (error: unknown) {
-      status.value = 'error';
-      throw error;
+      if (!options?.silent) {
+        status.value = 'error';
+        throw error;
+      }
+      return gatewayInfo.value;
     } finally {
-      loading.value = false;
+      if (!options?.silent) {
+        loading.value = false;
+      }
+    }
+  }
+
+  /**
+   * 应用退出：停止轮询，并尽力停止由驭爪管理的 Gateway（vs-process）。
+   */
+  async function shutdown(options?: { stopManagedGateway?: boolean }) {
+    if (shuttingDown) return;
+    shuttingDown = true;
+    stopPolling();
+
+    const shouldStopGateway =
+      options?.stopManagedGateway !== false
+      && (managedBy.value === 'vs-process' || (processOnline.value && !serviceInstalled.value));
+
+    if (shouldStopGateway && (processOnline.value || portReady.value)) {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), SHUTDOWN_STOP_TIMEOUT_MS);
+      try {
+        await stopGateway({ silent: true, signal: controller.signal });
+      } catch {
+        // best effort on quit
+      } finally {
+        clearTimeout(timer);
+      }
+    } else {
+      status.value = 'stopped';
+      if (gatewayInfo.value) {
+        gatewayInfo.value = {
+          ...gatewayInfo.value,
+          wsConnected: false,
+          status: 'stopped',
+        };
+      }
     }
   }
 
@@ -266,9 +323,7 @@ export const useGatewayStore = defineStore('gateway', () => {
       const res = await gatewayApi.connectGateway();
       if (res.code === 0 && res.data) {
         applyInfo(res.data);
-        if (isActive.value) {
-          startPolling();
-        }
+        startHealthWatch();
         return res.data;
       }
     } catch {
@@ -276,12 +331,11 @@ export const useGatewayStore = defineStore('gateway', () => {
     }
 
     try {
-      const data = await fetchStatus();
-      if (isActive.value || wsConnected.value) {
-        startPolling();
-      }
+      const data = await fetchStatusSilent(true);
+      startHealthWatch();
       return data;
     } catch {
+      startHealthWatch();
       return null;
     }
   }
@@ -332,6 +386,7 @@ export const useGatewayStore = defineStore('gateway', () => {
   }
 
   let pollTimer: ReturnType<typeof setTimeout> | null = null;
+  let shuttingDown = false;
   const backgroundHeavy = ref(false);
 
   function setBackgroundHeavy(heavy: boolean) {
@@ -399,15 +454,23 @@ export const useGatewayStore = defineStore('gateway', () => {
       await fetchStatusSilent();
       const delay =
         intervalMs ??
-        (backgroundHeavy.value
-          ? 10_000
-          : isStarting.value || (isRunning.value && !wsConnected.value)
-            ? 2500
-            : 5000);
+        (isZombie.value
+          ? 15_000
+          : backgroundHeavy.value
+            ? 10_000
+            : isStarting.value || (isRunning.value && !wsConnected.value)
+              ? 2500
+              : 5000);
       pollTimer = setTimeout(tick, delay);
     };
 
     tick();
+  }
+
+  /** 应用打开后持续探测 Gateway；有活动实例或曾连接过时保持轮询 */
+  function startHealthWatch() {
+    if (polling.value) return;
+    startPolling();
   }
 
   function stopPolling() {
@@ -460,10 +523,15 @@ export const useGatewayStore = defineStore('gateway', () => {
     managedBy,
     serviceInstalled,
     managedByLabel,
+    healthIssue,
+    recoveryHint,
+    isZombie,
+    needsRecovery,
     statusLabel,
     lastRefreshedLabel,
     startGateway,
     stopGateway,
+    shutdown,
     connectGateway,
     ensureConnected,
     fetchStatus,
@@ -472,6 +540,7 @@ export const useGatewayStore = defineStore('gateway', () => {
     fetchLogs,
     fetchInfo,
     startPolling,
+    startHealthWatch,
     stopPolling,
     startAndPoll,
     stopAndHalt,

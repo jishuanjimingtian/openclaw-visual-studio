@@ -72,6 +72,18 @@
         </template>
       </n-alert>
 
+      <!-- Zombie / recovery alert -->
+      <n-alert
+        v-if="gatewayStore.needsRecovery && !gatewayStore.isStartupInProgress"
+        type="error"
+        :show-icon="true"
+        class="gwb-alert"
+      >
+        <template #header>{{ gatewayStore.isZombie ? 'Gateway 可能已僵死' : 'Gateway 需要恢复' }}</template>
+        <p v-if="gatewayStore.message" class="gwb-recovery-msg">{{ gatewayStore.message }}</p>
+        <p class="gwb-recovery-hint">{{ gatewayStore.recoveryHint || defaultRecoveryHint }}</p>
+      </n-alert>
+
       <!-- Error alert -->
       <n-alert
         v-if="error"
@@ -112,6 +124,9 @@ defineEmits<{
 }>();
 
 const gatewayStore = useGatewayStore();
+
+const defaultRecoveryHint =
+  '请以管理员 PowerShell 执行：openclaw gateway stop → schtasks /End /TN "OpenClaw Gateway" → taskkill /PID <进程号> /F /T → openclaw doctor --fix → openclaw gateway start';
 
 const starting = computed(() => gatewayStore.isStarting || gatewayStore.isStartupInProgress);
 const stopping = computed(() => gatewayStore.isStopping);
@@ -188,5 +203,16 @@ const dotClass = computed(() => {
 }
 .gwb-alert {
   margin-top: 10px;
+}
+.gwb-recovery-msg {
+  margin: 0 0 6px;
+  font-size: 13px;
+}
+.gwb-recovery-hint {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+  opacity: 0.9;
+  white-space: pre-wrap;
 }
 </style>

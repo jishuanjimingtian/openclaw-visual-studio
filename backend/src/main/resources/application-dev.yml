@@ -24,6 +24,11 @@ springdoc:
     operationsSorter: method
 
 app:
+  gateway:
+    prefer-daemon: false
+    doctor-fix-on-start: true
+    stop-on-shutdown: true
+    stop-managed-only-on-shutdown: true
   security:
     api-key-encryption-key: ${APP_ENCRYPTION_KEY:openclaw-vs-dev-key}
 

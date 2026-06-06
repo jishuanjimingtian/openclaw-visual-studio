@@ -41,4 +41,10 @@ public class GatewayInfo {
     private String startupPhase;
     /** 启动进度 0-100 */
     private Integer startupProgress;
+    /**
+     * 健康问题类型：zombie（端口监听但无响应）、rpc_disconnected、probe_failed
+     */
+    private String healthIssue;
+    /** 面向用户的恢复操作建议 */
+    private String recoveryHint;
 }

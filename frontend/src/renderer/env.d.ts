@@ -16,6 +16,8 @@ interface ElectronAPI {
   hashChatFile?: (filePath: string) => Promise<string>;
   statChatFile?: (filePath: string) => Promise<{ size: number; isFile: boolean }>;
   platform: string;
+  prepareQuit?: () => Promise<void>;
+  onPrepareQuit?: (listener: () => void) => () => void;
   update?: {
     getState: () => Promise<import('@shared/update').AppUpdateState>;
     check: (options?: import('@shared/update').AppUpdateCheckOptions) => Promise<import('@shared/update').AppUpdateState>;

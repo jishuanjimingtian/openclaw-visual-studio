@@ -641,6 +641,10 @@ export interface GatewayInfo {
   startupPhase?: GatewayStartupPhase;
   /** 启动进度 0-100 */
   startupProgress?: number;
+  /** zombie | rpc_disconnected | probe_failed */
+  healthIssue?: string;
+  /** 面向用户的恢复操作建议 */
+  recoveryHint?: string;
 }
 
 export type GatewayStartupPhase =
